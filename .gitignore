@@ -1,0 +1,12 @@
+.DS_Store
+/src/composer.lock
+/src/bin
+/src/config.php
+/src/templates_c/*
+/src/vendor
+/src/test.php
+/src/databases/*
+/src/cache.sqlite
+Logos/*
+*.csv
+*.xls*
