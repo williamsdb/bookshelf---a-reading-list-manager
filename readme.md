@@ -59,7 +59,6 @@ My electric toothbrush seems to be running out of charge quicker and quicker but
 * [PHP](https://php.net)
 * [Boostrap](https://getbootstrap.com/)
 * [smarty](https://github.com/smarty-php/smarty)
-* [phpMailer](https://github.com/PHPMailer/PHPMailer)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -74,13 +73,12 @@ Getting up and running is very straightforward:
 2. install [composer](https://getcomposer.org/)
 3. add the smarty templating engine and phpMailer
     
-    > composer.phar require smarty/smarty
+    > php composer.phar install
     
-    > composer.phar require PHPMailer/PHPMailer
 4. follow the installation instructions below.
 
 
-You can read more about how it all works in [these blog posts](https://www.spokenlikeageek.com/tag/when-did-i-last/).
+You can read more about how it all works in [these blog posts](https://www.spokenlikeageek.com/tag/bookshelf/).
 
 ### Prerequisites
 
@@ -93,24 +91,19 @@ Requirements are very simple, it requires the following:
 
 You must install the dependencies, create some required files and set the appropriate permissions. This is what I did but you may need to adjust depending on your flavour of OS:
 
-1. ```git clone https://github.com/williamsdb/WDiL```
-2. ```cd WDiL\src```
+1. ```git clone https://github.com/williamsdb/bookshelf---a-reading-list-manager```
+2. ```cd bookshelf---a-reading-list-manager\src```
 1. ```mkdir vendor```
-2. ```php composer.phar require smarty/smarty```
-3. ```php composer.phar require PHPMailer/PHPMailer```
+2. ```php composer.phar install```
 3. ```sudo mkdir templates_c```
 4. ```sudo chown apache:apache templates_c -R```
 5. ```sudo chcon -R -t httpd_sys_rw_content_t templates_c```
-6. ```sudo mv config_dummy.php config.php```
-7. ```sudo mkdir databases```
-8. ```sudo chown -R apache:apache databases```
-9. ```sudo chcon -R -t httpd_sys_rw_content_t databases```
-10. ```sudo touch logs.db```
-11. ```sudo touch users.db```
-12. ```sudo chown apache:apache *.db```
-13. ```sudo chcon -R -t httpd_sys_rw_content_t *.db```
-14. ```sudo chown apache:apache config.php```
-15. ```sudo chcon -R -t httpd_sys_rw_content_t config.php```
+6. ```sudo mkdir uploads```
+7. ```sudo chown apache:apache uploads -R```
+8. ```sudo chcon -R -t httpd_sys_rw_content_t uploads```
+9. ```sudo mv config_dummy.php config.php```
+10. ```cd ..```
+11. ```sudo chown apache:apache src```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -130,7 +123,7 @@ _For more information, please refer to the [these blog posts](https://www.spoken
 
 - None
 
-See the [open issues](https://github.com/williamsdb/WDiL/issues) for a full list of proposed features (and known issues).
+See the [open issues](https://github.com/williamsdb/bookshelf---a-reading-list-manager/issues) for a full list of proposed features (and known issues).
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -172,10 +165,10 @@ Bluesky - [@spokenlikeageek.com](https://bsky.app/profile/spokenlikeageek.com)
 
 Mastodon - [@spokenlikeageek](https://techhub.social/@spokenlikeageek)
 
-Website - [https://spokenlikeageek.com](https://www.spokenlikeageek.com/tag/when-did-i-last/)
+Website - [https://spokenlikeageek.com](https://www.spokenlikeageek.com/tag/bookshelf/)
 
 
-Project link - [Github](https://github.com/williamsdb/WDiL)
+Project link - [Github](https://github.com/williamsdb/bookshelf---a-reading-list-manager)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 

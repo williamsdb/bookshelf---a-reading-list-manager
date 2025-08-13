@@ -7,6 +7,7 @@
 /src/test.php
 /src/databases/*
 /src/cache.sqlite
+/src/composer.phar
 Logos/*
 *.csv
 *.xls*

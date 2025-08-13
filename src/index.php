@@ -166,7 +166,6 @@ try {
                     );
         ";
 
-
         $pdo->exec($sql);
     } else {
         // Connect to an existing database
@@ -487,6 +486,7 @@ switch ($cmd) {
                     book.read,
                     book.priority,
                     book.dateAdded,
+                    book.dateRead,
                     book.notes,
                     book.rating,
                     list.name AS list,

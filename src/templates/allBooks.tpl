@@ -7,7 +7,7 @@
   <tr>
     <th>Author</th>
     <th>Title</th>
-    <th>Format</th>
+    <th>Date Read</th>
     <th>Rating</th>
     <th>Status</th>
     <th>Status Sort</th>
@@ -15,7 +15,7 @@
   <tr>
     <th><input type="text" placeholder="Search Author" class="form-control" value="{$author|escape}" /></th>
     <th><input type="text" placeholder="Search Title" class="form-control" value="{$title|escape}" /></th>
-    <th><input type="text" placeholder="Search Format" class="form-control" value="{$format|escape}" /></th>
+    <th><input type="text" placeholder="Search Date Read" class="form-control" value="{$dateRead|escape}" /></th>
     <th><input type="text" placeholder="Search Rating" class="form-control" value="{$rating|escape}" /></th>
     <th>
       <select id="filter-status" class="form-select">
@@ -33,14 +33,14 @@
 <tbody>
     {section name=all loop=$books}
     <tr>
-        <td>{$books[all].author}</td>
+        <td><a href="?author={$books[all].author}">{$books[all].author}</a></td>
         <td>
           <a href="/viewDetails/{$books[all].id}">{$books[all].title}</a>
           {if $books[all].series}
             <br /><span class="badge bg-secondary">{$books[all].series} {if $books[all].seriesPosition} (#{$books[all].seriesPosition}){/if}</span>
           {/if}
         </td>
-        <td>{$books[all].format}</td>
+        <td>{$books[all].dateRead}</td>
         <td>
           {if $books[all].rating}
             {math equation="floor(x)" x=$books[all].rating assign="fullStars"}
@@ -76,7 +76,7 @@
     <tr>
       <th>Author</th>
       <th>Title</th>
-      <th>Format</th>
+      <th>Date Read</th>
       <th>Rating</th>
       <th>Status</th>
       <th>Status Sort</th>
