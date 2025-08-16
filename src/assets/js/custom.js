@@ -47,13 +47,32 @@ $(document).ready(function () {
     responsive: true, // Enable responsive extension
     columnDefs: [
       {
-        targets: [0, 1, 2, 3],
+        targets: [0, 1, 2],
         orderable: true,
         searchable: true,
       },
       {
+        targets: 3,
+        render: function (data, type, row) {
+          if (type === "filter" || type === "sort") {
+            // Extract numeric rating from the hidden span
+            const div = document.createElement("div");
+            div.innerHTML = data;
+            const val = div.querySelector(".rating-value");
+            return val ? val.textContent.trim() : "0";
+          }
+          return data; // keep the star icons for display
+        },
+      },
+      {
+        targets: 4,
+        orderable: true,
+        searchable: false,
+      },
+      {
         targets: 5,
         visible: false,
+        searchable: true,
       },
     ],
     order: [[0, "asc"]],
@@ -91,6 +110,19 @@ $(document).ready(function () {
       allBooksTable
         .column(5)
         .search("(^" + this.value + "$)", true, false)
+        .draw();
+    }
+  });
+
+  // Rating filter live update
+  $("#rating-status").on("input", function () {
+    const rating = this.value.trim();
+    if (rating === "") {
+      allBooksTable.column(3).search("").draw();
+    } else {
+      allBooksTable
+        .column(3)
+        .search("^" + rating, true, false)
         .draw();
     }
   });

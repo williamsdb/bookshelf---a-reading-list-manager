@@ -48,7 +48,7 @@
 
 My electric toothbrush seems to be running out of charge quicker and quicker but is it or am I just misremembering when I last charged it? WDiL aims to help solve those sorts of problems by allowing you to record every time you do something and then see stats on things such as frequency and average interval.
 
-![](https://www.spokenlikeageek.com/wp-content/uploads/2024/09/2024-09-14-15-40-48.png)
+![](https://www.spokenlikeageek.com/wp-content/uploads/2025/08/bookshelf-a-reading-list-manager-scaled.png?w=2560&ssl=1)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 

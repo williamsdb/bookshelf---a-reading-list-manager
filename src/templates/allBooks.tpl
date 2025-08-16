@@ -16,7 +16,7 @@
     <th><input type="text" placeholder="Search Title" class="form-control" value="{$title|escape}" /></th>
     <th><input type="text" placeholder="Search Author" class="form-control" value="{$author|escape}" /></th>
     <th><input type="text" placeholder="Search Date Read" class="form-control" value="{$dateRead|escape}" /></th>
-    <th><input type="text" placeholder="Search Rating" class="form-control" value="{$rating|escape}" /></th>
+    <th><input type="text" placeholder="Search Rating" id="rating-status" class="form-control" value="{$rating|escape}" /></th>
     <th>
       <select id="filter-status" class="form-select">
         <option value="">All</option>
@@ -43,6 +43,7 @@
         <td>{$books[all].dateRead}</td>
         <td>
           {if $books[all].rating}
+            <span class="d-none rating-value">{$books[all].rating}</span>
             {math equation="floor(x)" x=$books[all].rating assign="fullStars"}
             {assign var="halfStar" value=($books[all].rating - $fullStars >= 0.5)}
             {assign var="emptyStars" value=5 - $fullStars - ($halfStar?1:0)}
