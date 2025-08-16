@@ -8,7 +8,7 @@
 <h3 align="center">bookshelf - a reading list manager</h3>
 
   <p align="center">
-    Record when you last carried out something and see stats over time.
+    Manage your reading whatever the format.
     <br />
   </p>
 </div>
@@ -46,7 +46,10 @@
 <!-- ABOUT THE PROJECT -->
 ## About The Project
 
-My electric toothbrush seems to be running out of charge quicker and quicker but is it or am I just misremembering when I last charged it? WDiL aims to help solve those sorts of problems by allowing you to record every time you do something and then see stats on things such as frequency and average interval.
+Bookshelf - A reading list manager. A place where you can manage all your reading, whether it be physical, electronic, or audio formats. Mark which ones you are reading or have read, and place books into lists such as the default "Priority" list for those you want to read next.
+
+Read more about the project [here](https://www.spokenlikeageek.com/2025/09/01/bookshelf-a-reading-list-manager/).
+
 
 ![](https://www.spokenlikeageek.com/wp-content/uploads/2025/08/bookshelf-a-reading-list-manager-scaled.png?w=2560&ssl=1)
 
@@ -59,6 +62,8 @@ My electric toothbrush seems to be running out of charge quicker and quicker but
 * [PHP](https://php.net)
 * [Boostrap](https://getbootstrap.com/)
 * [smarty](https://github.com/smarty-php/smarty)
+* [Open Library](https://openlibrary.org/dev/docs/api/books)
+* [Quagga](https://serratus.github.io/quaggaJS/)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -84,7 +89,7 @@ You can read more about how it all works in [these blog posts](https://www.spoke
 
 Requirements are very simple, it requires the following:
 
-1. PHP (I tested on v8.1.13)
+1. PHP (I tested on v8.3.16)
 2. [composer] (https://getcomposer.org/)
 
 ### Installation
@@ -112,7 +117,7 @@ You must install the dependencies, create some required files and set the approp
 <!-- USAGE EXAMPLES -->
 ## Usage
 
-_For more information, please refer to the [these blog posts](https://www.spokenlikeageek.com/tag/when-did-i-last/)_
+_For more information, please refer to the [these blog posts](https://www.spokenlikeageek.com/tag/bookshelf/)_
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
