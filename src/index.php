@@ -893,7 +893,7 @@ switch ($cmd) {
             $name = $_POST['name'];
             $date = $_POST['value'];
             // change date format from yyyy-mm-dd to yyyy/mm/dd
-            $date = date('Y/m/d', strtotime($date));
+            //            $date = date('Y/m/d', strtotime($date));
 
             // Extract book id from the name (e.g., '12' => 12)
             $bookId = intval($name);
