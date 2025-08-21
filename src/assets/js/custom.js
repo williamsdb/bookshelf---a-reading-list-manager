@@ -96,6 +96,28 @@ $(document).ready(function () {
     },
   });
 
+  // Whenever responsive recalculates column visibility
+  allBooksTable.on("responsive-resize", function (e, datatable, columns) {
+    columns.forEach(function (visible, i) {
+      // Title row cell (<thead> tr:first-child th)
+      let $titleHeader = $(datatable.column(i).header());
+
+      // Filter row cell (<thead> tr:nth-child(2) th)
+      let $filterHeader = $titleHeader
+        .closest("thead")
+        .find("tr:eq(1) th")
+        .eq(i);
+
+      if (visible) {
+        $titleHeader.show();
+        $filterHeader.show();
+      } else {
+        $titleHeader.hide();
+        $filterHeader.hide();
+      }
+    });
+  });
+
   // Text filter live update
   $("#allBooks thead tr:eq(1) th input").on("keyup change clear", function () {
     var colIdx = $(this).parent().index();
