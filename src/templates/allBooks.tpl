@@ -5,12 +5,12 @@
 <table class="table table-striped" id="allBooks">
 <thead>
   <tr>
-    <th>Title</th>
-    <th>Author</th>
-    <th>Date Read</th>
-    <th>Rating</th>
-    <th>Status</th>
-    <th>Status Sort</th>
+    <th class="desktop tablet mobile">Title</th>
+    <th class="desktop tablet">Author</th>
+    <th class="desktop tablet">Date Read</th>
+    <th class="desktop tablet">Rating</th>
+    <th class="desktop tablet">Status</th>
+    <th class="desktop tablet">Status Sort</th>
   </tr>
   <tr>
     <th><input type="text" placeholder="Search Title" class="form-control" value="{$title|escape}" /></th>
