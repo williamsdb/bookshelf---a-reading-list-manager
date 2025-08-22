@@ -34,7 +34,7 @@
     {section name=all loop=$books}
     <tr>
         <td>
-          <a href="/viewDetails/{$books[all].id}"><span class="truncate">{$books[all].title}</span></a>
+          <a href="/viewDetails/{$books[all].id}">{$books[all].title}</a>
           {if $books[all].series}
             <br /><span class="badge bg-secondary">{$books[all].series} {if $books[all].seriesPosition} (#{$books[all].seriesPosition}){/if}</span>
           {/if}
