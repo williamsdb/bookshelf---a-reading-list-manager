@@ -56,7 +56,7 @@
           {foreach from=$topAuthors item=author}
           <tr>
               <td width="5%" align="right">{$count}</td>
-              <td><a href="/allBooks?author={$author.name|escape:'url'}">{$author.name}</a></td>
+              <td><a href="/?author={$author.name|escape:'url'}">{$author.name}</a></td>
               <td align="right">{$author.count}</td>
           </tr>
           {assign var="count" value=$count+1}
