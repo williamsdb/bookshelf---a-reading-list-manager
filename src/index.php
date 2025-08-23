@@ -466,11 +466,18 @@ switch ($cmd) {
         header('Location: /');
         break;
 
-    case 'allBooks':
+    case '':
 
         $author = isset($_REQUEST['author']) ? trim($_REQUEST['author']) : '';
         $title = isset($_REQUEST['title']) ? trim($_REQUEST['title']) : '';
         $format = isset($_REQUEST['format']) ? trim($_REQUEST['format']) : '';
+
+        // Check if the id is set and is a valid number
+        if (!isset($_REQUEST['id']) || !is_numeric($_REQUEST['id'])) {
+            $defaultListId = 0;
+        } else {
+            $defaultListId = intval($_REQUEST['id']);
+        }
 
         // get all books with optional filters
         $sql = "SELECT 
@@ -494,9 +501,18 @@ switch ($cmd) {
                 FROM book
                 LEFT JOIN format ON book.formatId = format.id
                 LEFT JOIN source ON book.sourceId = source.id
-                LEFT JOIN list ON book.list = list.id
-                ORDER BY book.author ASC";
+                LEFT JOIN `list` ON `book`.`list` = `list`.`id`
+                LEFT JOIN `bookList` ON `book`.`id` = `bookList`.`book`";
+
+        if ($defaultListId) {
+            $sql .= " WHERE `bookList`.`list` = :defaultListId";
+        }
+
+        $sql .= " ORDER BY book.author ASC";
         $stmt = $pdo->prepare($sql);
+        if ($defaultListId) {
+            $stmt->bindParam(':defaultListId', $defaultListId, PDO::PARAM_INT);
+        }
         $stmt->execute();
         $books = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -505,6 +521,7 @@ switch ($cmd) {
         $listStmt->execute();
         $lists = $listStmt->fetchAll(PDO::FETCH_ASSOC);
 
+        $smarty->assign('defaultListId', $defaultListId);
         $smarty->assign('truncateAfterColon', $truncateAfterColon);
         $smarty->assign('lists', $lists);
         $smarty->assign('books', $books);
@@ -1056,7 +1073,7 @@ switch ($cmd) {
         $smarty->display('stats.tpl');
         break;
 
-    case '':
+    case 'oldhome':
 
         // Check if the id is set and is a valid number
         if (!isset($_REQUEST['id']) || !is_numeric($_REQUEST['id'])) {
@@ -1066,7 +1083,6 @@ switch ($cmd) {
         } else {
             $defaultListId = intval($_REQUEST['id']);
         }
-
 
         $sql = "SELECT 
                     `book`.`id`, 

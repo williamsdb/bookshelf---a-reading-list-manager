@@ -101,8 +101,10 @@
 			</a>
 
 			<ul class="nav nav-pills">
-				<li class="nav-item"><a href="/" class="nav-link">Reading List</a></li>
+				<li class="nav-item"><a href="/" class="nav-link">Home</a></li>
+			<!--
 				<li class="nav-item"><a href="/allBooks" class="nav-link">All Books</a></li>
+			-->
 				<li class="nav-item"><a href="/lists" class="nav-link">Lists</a></li>
 				<li class="nav-item"><a href="/stats" class="nav-link">Stats</a></li>
 				<li class="nav-item dropdown">

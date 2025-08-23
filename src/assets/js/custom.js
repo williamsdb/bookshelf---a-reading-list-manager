@@ -41,9 +41,10 @@ if (document.getElementById("myDropzone")) {
 }
 
 $(document).ready(function () {
-  console.log("✅ JS v=152 loaded");
-
   var allBooksTable = $("#allBooks").DataTable({
+    dom: '<"top">rt<"bottom"ilp><"clear">',
+    lengthMenu: [5, 10, 25, 50, 100],
+    pageLength: 10,
     orderCellsTop: true,
     fixedHeader: true,
     responsive: true,
@@ -66,9 +67,12 @@ $(document).ready(function () {
     ],
     order: [[0, "asc"]],
     initComplete: function () {
-      console.log("🔧 initComplete fired");
-
       var api = this.api();
+
+      // Set font size for the table
+      $(this).css("font-size", "14px");
+      $("#loading-spinner").hide();
+      $("#allBooks").show();
 
       // Restore any saved text filters (row 2)
       $("#allBooks thead tr:eq(1) th input").each(function (colIndex) {
@@ -118,26 +122,22 @@ $(document).ready(function () {
 
       // Force Responsive to calculate, then sync once on load
       setTimeout(function () {
-        console.log("🧮 forcing responsive recalc on init");
         api.columns.adjust();
         if (api.responsive && api.responsive.recalc) {
           api.responsive.recalc();
         }
         var vis = computeResponsiveVisibility(api);
-        console.log("📊 init visibility array:", vis);
         syncFilterHeaders(api, vis);
       }, 0);
 
       // Also run once more after FixedHeader finishes cloning (next tick)
       setTimeout(function () {
         var vis = computeResponsiveVisibility(api);
-        console.log("📊 post-FixedHeader visibility array:", vis);
         syncFilterHeaders(api, vis);
       }, 50);
 
       // Keep things in sync on later responsive changes
       api.on("responsive-resize", function (e, dt, columns) {
-        console.log("📱 responsive-resize:", columns);
         syncFilterHeaders(dt, columns);
       });
     },
@@ -146,13 +146,11 @@ $(document).ready(function () {
   // Live text filters (Title/Author/Date/Rating)
   $("#allBooks thead tr:eq(1) th input").on("keyup change clear", function () {
     var colIdx = $(this).parent().index();
-    console.log("🔍 text filter col", colIdx, "=", this.value);
     allBooksTable.column(colIdx).search(this.value).draw();
   });
 
   // Status dropdown (user changes visible col 4; filter is applied to hidden col 5)
   $("#filter-status").on("change", function () {
-    console.log("🔽 status filter:", this.value);
     if (this.value === "") {
       allBooksTable.column(5).search("").draw();
     } else {
@@ -165,7 +163,6 @@ $(document).ready(function () {
 
   // Rating filter (matches beginning of numeric value)
   $("#rating-status").on("input", function () {
-    console.log("⭐ rating filter:", this.value);
     const rating = this.value.trim();
     if (rating === "") {
       allBooksTable.column(3).search("").draw();
@@ -183,7 +180,6 @@ $(document).ready(function () {
   $("#book-search-form").on("submit", function (e) {
     e.preventDefault();
     const query = $("#book-title").val();
-    console.log("Searching for:", query);
 
     $.ajax({
       url: `https://openlibrary.org/search.json`,
@@ -330,7 +326,6 @@ $(document).ready(function () {
     // Send the selected book ID and rating to the server
     // get the book ID from the hidden input
     const bookId = $("#ratingSelect").attr("name") || "";
-    console.log("Book ID:", bookId, "Rating Value:", value);
 
     $.ajax({
       url: "/ratingChange",

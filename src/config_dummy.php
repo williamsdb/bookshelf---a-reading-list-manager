@@ -23,3 +23,6 @@ $associateTag = '';
 $region = ''; // UK
 $host = '';
 $uri = '';
+
+// remove text after colon on all books display
+$truncateAfterColon = true;
