@@ -2,7 +2,7 @@
 
 <h3>All Books</h3>
 
-<table class="table table-striped" id="allBooks">
+<table class="table table-striped" width="100%" id="allBooks">
 <thead>
   <tr>
     <th class="desktop tablet mobile">Title</th>
@@ -34,7 +34,13 @@
     {section name=all loop=$books}
     <tr>
         <td>
-          <a href="/viewDetails/{$books[all].id}">{$books[all].title}</a>
+          <a href="/viewDetails/{$books[all].id}">
+            {if $truncateAfterColon}
+              {$books[all].title|regex_replace:"/[[:space:]]*:.*/":""}
+            {else}
+              {$books[all].title}
+            {/if}
+          </a>
           {if $books[all].series}
             <br /><span class="badge bg-secondary">{$books[all].series} {if $books[all].seriesPosition} (#{$books[all].seriesPosition}){/if}</span>
           {/if}

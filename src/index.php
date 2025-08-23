@@ -505,6 +505,7 @@ switch ($cmd) {
         $listStmt->execute();
         $lists = $listStmt->fetchAll(PDO::FETCH_ASSOC);
 
+        $smarty->assign('truncateAfterColon', $truncateAfterColon);
         $smarty->assign('lists', $lists);
         $smarty->assign('books', $books);
         $smarty->assign('title', $title);
