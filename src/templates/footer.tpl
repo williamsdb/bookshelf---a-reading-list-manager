@@ -16,6 +16,6 @@
 <script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js" type="text/javascript" charset="utf8"></script>
 <script src="https://unpkg.com/dropzone@5/dist/min/dropzone.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/quagga/dist/quagga.min.js"></script>
-<script src="/assets/js/custom.js?v=1.0.157" type="text/javascript"></script>
+<script src="/assets/js/custom.js?v=1.0.161" type="text/javascript"></script>
 </body>
 </html>

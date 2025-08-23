@@ -41,93 +41,120 @@ if (document.getElementById("myDropzone")) {
 }
 
 $(document).ready(function () {
+  console.log("✅ JS v=152 loaded");
+
   var allBooksTable = $("#allBooks").DataTable({
     orderCellsTop: true,
     fixedHeader: true,
-    responsive: true, // Enable responsive extension
+    responsive: true,
     columnDefs: [
-      {
-        targets: [0, 1, 2],
-        orderable: true,
-        searchable: true,
-      },
+      { targets: [0, 1, 2], orderable: true, searchable: true },
       {
         targets: 3,
-        render: function (data, type, row) {
+        render: function (data, type) {
           if (type === "filter" || type === "sort") {
-            // Extract numeric rating from the hidden span
             const div = document.createElement("div");
             div.innerHTML = data;
             const val = div.querySelector(".rating-value");
             return val ? val.textContent.trim() : "0";
           }
-          return data; // keep the star icons for display
+          return data;
         },
       },
-      {
-        targets: 4,
-        orderable: true,
-        searchable: false,
-      },
-      {
-        targets: 5,
-        visible: false,
-        searchable: true,
-      },
+      { targets: 4, orderable: true, searchable: false },
+      { targets: 5, visible: false, searchable: true },
     ],
     order: [[0, "asc"]],
     initComplete: function () {
+      console.log("🔧 initComplete fired");
+
       var api = this.api();
 
-      // Text inputs (for title and author)
+      // Restore any saved text filters (row 2)
       $("#allBooks thead tr:eq(1) th input").each(function (colIndex) {
-        if (this.value) {
-          api.column(colIndex).search(this.value);
-        }
+        if (this.value) api.column(colIndex).search(this.value);
       });
 
-      // Dropdown (for status column filter)
+      // Restore status dropdown (filter against hidden Status Sort = col 5)
       const status = $("#filter-status").val();
-      if (status) {
-        api.column(5).search("(^" + status + "$)", true, false);
-      }
+      if (status) api.column(5).search("(^" + status + "$)", true, false);
 
       api.draw();
+
+      // ---- Helpers ----
+      function computeResponsiveVisibility(dt) {
+        // Build an array like responsive-resize gives us: [true/false per column]
+        var vis = [];
+        dt.columns().every(function (i) {
+          var hidden = false;
+
+          // Prefer checking a body cell for dtr-hidden
+          var $cells = dt.column(i).nodes().to$();
+          if ($cells.length) {
+            hidden = $cells.eq(0).hasClass("dtr-hidden");
+          } else {
+            // Fallbacks when there are 0 rows
+            var $th = $(dt.column(i).header());
+            hidden =
+              $th.hasClass("dtr-hidden") || $th.css("display") === "none";
+          }
+
+          vis[i] = !hidden;
+        });
+        return vis;
+      }
+
+      function syncFilterHeaders(dt, visibilityArray) {
+        // Apply to ALL theads (original + FixedHeader clone)
+        $(dt.table().container())
+          .find("thead")
+          .each(function () {
+            var $thead = $(this);
+            visibilityArray.forEach(function (visible, i) {
+              $thead.find("tr:eq(1) th").eq(i).toggle(visible);
+            });
+          });
+      }
+
+      // Force Responsive to calculate, then sync once on load
+      setTimeout(function () {
+        console.log("🧮 forcing responsive recalc on init");
+        api.columns.adjust();
+        if (api.responsive && api.responsive.recalc) {
+          api.responsive.recalc();
+        }
+        var vis = computeResponsiveVisibility(api);
+        console.log("📊 init visibility array:", vis);
+        syncFilterHeaders(api, vis);
+      }, 0);
+
+      // Also run once more after FixedHeader finishes cloning (next tick)
+      setTimeout(function () {
+        var vis = computeResponsiveVisibility(api);
+        console.log("📊 post-FixedHeader visibility array:", vis);
+        syncFilterHeaders(api, vis);
+      }, 50);
+
+      // Keep things in sync on later responsive changes
+      api.on("responsive-resize", function (e, dt, columns) {
+        console.log("📱 responsive-resize:", columns);
+        syncFilterHeaders(dt, columns);
+      });
     },
   });
 
-  // Whenever responsive recalculates column visibility
-  allBooksTable.on("responsive-resize", function (e, datatable, columns) {
-    columns.forEach(function (visible, i) {
-      // Title row cell (<thead> tr:first-child th)
-      let $titleHeader = $(datatable.column(i).header());
-
-      // Filter row cell (<thead> tr:nth-child(2) th)
-      let $filterHeader = $titleHeader
-        .closest("thead")
-        .find("tr:eq(1) th")
-        .eq(i);
-
-      if (visible) {
-        $titleHeader.show();
-        $filterHeader.show();
-      } else {
-        $titleHeader.hide();
-        $filterHeader.hide();
-      }
-    });
-  });
-
-  // Text filter live update
+  // Live text filters (Title/Author/Date/Rating)
   $("#allBooks thead tr:eq(1) th input").on("keyup change clear", function () {
     var colIdx = $(this).parent().index();
+    console.log("🔍 text filter col", colIdx, "=", this.value);
     allBooksTable.column(colIdx).search(this.value).draw();
   });
 
-  // Dropdown filter live update
+  // Status dropdown (user changes visible col 4; filter is applied to hidden col 5)
   $("#filter-status").on("change", function () {
+    console.log("🔽 status filter:", this.value);
     if (this.value === "") {
-      allBooksTable.column(5).search("").draw(); // clear the filter
+      allBooksTable.column(5).search("").draw();
     } else {
       allBooksTable
         .column(5)
@@ -136,8 +163,9 @@ $(document).ready(function () {
     }
   });
 
-  // Rating filter live update
+  // Rating filter (matches beginning of numeric value)
   $("#rating-status").on("input", function () {
+    console.log("⭐ rating filter:", this.value);
     const rating = this.value.trim();
     if (rating === "") {
       allBooksTable.column(3).search("").draw();
