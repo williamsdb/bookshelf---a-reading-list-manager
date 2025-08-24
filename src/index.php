@@ -149,7 +149,7 @@ try {
                     );
 
                 INSERT INTO `list` (`name`)
-                VALUES ('Priority');
+                VALUES ('To Read'), ('Wants');
 
                 UPDATE `list` SET `default` = 1 WHERE `id` = 1;
 

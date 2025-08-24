@@ -4,7 +4,7 @@
 
     <table class="table table-striped">
         <tbody>
-            <tr><td width="15%"><strong>Author</strong></td><td align="left"><a href="/allBooks?author={$book.author|escape:'url'}">{$book.author}</a></td></tr>
+            <tr><td width="15%"><strong>Author</strong></td><td align="left"><a href="/?author={$book.author|escape:'url'}">{$book.author}</a></td></tr>
             <tr><td width="15%"><strong>Series</strong></td><td>{$book.series} {if $book.seriesPosition} (#{$book.seriesPosition}){/if}</td></tr>
             <tr><td width="15%"><strong>Genre</strong></td><td align="left">{$book.genre}</td></tr>
             <tr><td width="15%"><strong>ISBN</strong></td><td>{$book.isbn}</td></tr>
