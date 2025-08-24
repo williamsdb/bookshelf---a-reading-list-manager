@@ -49,7 +49,7 @@ $(document).ready(function () {
     fixedHeader: true,
     responsive: true,
     columnDefs: [
-      { targets: [0, 1, 2], orderable: true, searchable: true },
+      { targets: [0, 1, 2, 4], orderable: true, searchable: true },
       {
         targets: 3,
         render: function (data, type) {
@@ -62,7 +62,6 @@ $(document).ready(function () {
           return data;
         },
       },
-      { targets: 4, orderable: true, searchable: false },
       { targets: 5, visible: false, searchable: true },
     ],
     order: [[0, "asc"]],
@@ -149,18 +148,6 @@ $(document).ready(function () {
     allBooksTable.column(colIdx).search(this.value).draw();
   });
 
-  // Status dropdown (user changes visible col 4; filter is applied to hidden col 5)
-  $("#filter-status").on("change", function () {
-    if (this.value === "") {
-      allBooksTable.column(5).search("").draw();
-    } else {
-      allBooksTable
-        .column(5)
-        .search("(^" + this.value + "$)", true, false)
-        .draw();
-    }
-  });
-
   // Rating filter (matches beginning of numeric value)
   $("#rating-status").on("input", function () {
     const rating = this.value.trim();
@@ -170,6 +157,31 @@ $(document).ready(function () {
       allBooksTable
         .column(3)
         .search("^" + rating, true, false)
+        .draw();
+    }
+  });
+
+  // Format filter (matches beginning of numeric value)
+  $("#format-status").on("input", function () {
+    const format = this.value.trim();
+    if (format === "") {
+      allBooksTable.column(4).search("").draw();
+    } else {
+      allBooksTable
+        .column(4)
+        .search("^" + format, true, false)
+        .draw();
+    }
+  });
+
+  // Status dropdown changes filter is applied to hidden col 5
+  $("#filter-status").on("change", function () {
+    if (this.value === "") {
+      allBooksTable.column(5).search("").draw();
+    } else {
+      allBooksTable
+        .column(5)
+        .search("(^" + this.value + "$)", true, false)
         .draw();
     }
   });

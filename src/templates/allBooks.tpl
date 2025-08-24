@@ -6,7 +6,7 @@
         <form method="get" action="">
             <div class="row">
                 <div class="col-auto">
-                    <label for="listSelect">Filter by list: </label>
+                    <label for="listSelect" style="margin-top: 7px;">Filter by list: </label>
                 </div>
                 <div class="col-auto">
                     <select id="listSelect" name="list_id" class="form-select">
@@ -15,6 +15,17 @@
                             <option value="{$list.id}"{if $list.id == $defaultListId} selected{/if}>{$list.name}</option>
                         {/foreach}
                     </select>
+                </div>
+                <div class="col-auto">
+                    <label for="listSelect" style="margin-top: 7px;">Filter by Status: </label>
+                </div>
+                <div class="col-auto">
+                  <select id="filter-status" class="form-select">
+                    <option value="">All</option>
+                    <option value="Read">Read</option>
+                    <option value="Not Read">Not Read</option>
+                    <option value="Reading">Reading</option>
+                  </select>
                 </div>
             </div>
         </form>
@@ -29,9 +40,9 @@
     <tr>
       <th class="desktop tablet mobile">Title</th>
       <th class="desktop tablet">Author</th>
-      <th class="desktop tablet">Date Read</th>
-      <th class="desktop tablet">Rating</th>
-      <th class="desktop tablet">Status</th>
+      <th class="desktop tablet" width="15%">Date Read</th>
+      <th class="desktop tablet" width="10%">Rating</th>
+      <th class="desktop tablet">Format</th>
       <th class="desktop tablet">Status Sort</th>
     </tr>
     <tr>
@@ -39,14 +50,7 @@
       <th><input type="text" placeholder="Search Author" class="form-control" value="{$author|escape}" /></th>
       <th><input type="text" placeholder="Search Date Read" class="form-control" value="{$dateRead|escape}" /></th>
       <th><input type="text" placeholder="Search Rating" id="rating-status" class="form-control" value="{$rating|escape}" /></th>
-      <th>
-        <select id="filter-status" class="form-select">
-          <option value="">All</option>
-          <option value="Read">Read</option>
-          <option value="Not Read">Not Read</option>
-          <option value="Reading">Reading</option>
-        </select>
-      </th>
+      <th><input type="text" placeholder="Search Format" id="format-status" class="form-control" value="{$format|escape}" /></th>
       <th>
           &nbsp;
       </th>
@@ -86,11 +90,11 @@
             {/if}
           </td>
           <td width="12%">
-              <select name="status_{$books[all].id}" id="statusChange_{$books[all].id}" class="form-select" onchange="changeStatus(this);">
-                  <option value="0"{if $books[all].read == 0} selected{/if}>Not Read</option>
-                  <option value="1"{if $books[all].read == 1} selected{/if}>Reading</option>
-                  <option value="2"{if $books[all].read == 2} selected{/if}>Read</option>
-            </select>
+            {if $books[all].format}
+              {$books[all].format}
+            {else}
+              <span class="text-muted">Unknown Format</span>
+            {/if}
           </td>
           <td id="statusSort_{$books[all].id}">
               {if $books[all].read == 0}Not Read
@@ -107,7 +111,7 @@
         <th>Author</th>
         <th>Date Read</th>
         <th>Rating</th>
-        <th>Status</th>
+        <th>Format</th>
         <th>Status Sort</th>
       </tr>
   </tfoot>
