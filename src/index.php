@@ -486,6 +486,7 @@ switch ($cmd) {
         $author = isset($_REQUEST['author']) ? trim($_REQUEST['author']) : '';
         $title = isset($_REQUEST['title']) ? trim($_REQUEST['title']) : '';
         $format = isset($_REQUEST['format']) ? trim($_REQUEST['format']) : '';
+        $source = isset($_REQUEST['source']) ? trim($_REQUEST['source']) : '';
 
         // Check if the id is set and is a valid number
         if (!isset($_REQUEST['id']) || !is_numeric($_REQUEST['id'])) {
@@ -543,6 +544,7 @@ switch ($cmd) {
         $smarty->assign('title', $title);
         $smarty->assign('author', $author);
         $smarty->assign('format', $format);
+        $smarty->assign('source', $source);
         $smarty->display('allBooks.tpl');
         break;
 

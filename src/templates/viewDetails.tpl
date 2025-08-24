@@ -9,8 +9,8 @@
             <tr><td width="15%"><strong>Genre</strong></td><td align="left">{$book.genre}</td></tr>
             <tr><td width="15%"><strong>ISBN</strong></td><td>{$book.isbn}</td></tr>
             <tr><td><strong>Link</strong></td><td>{if $book.url}<a href="{$book.url}" target="_blank">{$book.title}</a>{/if}</td></tr>
-            <tr><td width="15%"><strong>Format</strong></td><td><a href="/allBooks?format={$book.format|escape:'url'}">{$book.format}</a></td></tr>
-            <tr><td width="15%"><strong>Source</strong></td><td>{$book.source}</td></tr>
+            <tr><td width="15%"><strong>Format</strong></td><td><a href="/?format={$book.format|escape:'url'}">{$book.format}</a></td></tr>
+            <tr><td width="15%"><strong>Source</strong></td><td><a href="/?source={$book.source|escape:'url'}">{$book.source}</a></td></tr>
             <tr>
                 <td><strong>Lists</strong></td>
                 <td>
