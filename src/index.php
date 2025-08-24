@@ -140,7 +140,7 @@ try {
                     );
 
                 INSERT INTO `source` (`name`)
-                VALUES ('Kindle'), ('Audible'), ('Scan'), ('Search'), ('CSV'), ('Plex');
+                VALUES ('Kindle'), ('Audible'), ('Scan'), ('Search'), ('CSV'), ('Plex'), ('Calibre');
 
                 CREATE TABLE IF NOT EXISTS `list` (
                         `id` INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -249,6 +249,21 @@ switch ($cmd) {
                         'sourceId' => 1,
                         'url' => 1,
                         'rating' => null,
+                        'review' => null,
+                        'dateRead' => null
+                    ],
+                    // Calibre CSV
+                    'author_sort' => [
+                        'author' => 1,
+                        'title' => 18,
+                        'series' => 14,
+                        'seriesPosition' => 15,
+                        'genre' => 17,
+                        'isbn' => 6,
+                        'formatId' => 2,
+                        'sourceId' => 7,
+                        'url' => null,
+                        'rating' => 13,
                         'review' => null,
                         'dateRead' => null
                     ],
@@ -1433,6 +1448,14 @@ switch ($cmd) {
         // Redirect to the home page
         header('Location: /');
         exit;
+
+    case 'dbUpdate':
+
+        $insertBookSource = $pdo->prepare("INSERT INTO `source` (`name`)
+                VALUES ('Calibre');");
+        $insertBookSource->execute();
+
+        break;
 
     case 'fetchPlex':
 
