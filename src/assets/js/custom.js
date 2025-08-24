@@ -49,7 +49,7 @@ $(document).ready(function () {
     fixedHeader: true,
     responsive: true,
     columnDefs: [
-      { targets: [0, 1, 2, 4], orderable: true, searchable: true },
+      { targets: [0, 1, 2, 4, 5], orderable: true, searchable: true },
       {
         targets: 3,
         render: function (data, type) {
@@ -62,7 +62,7 @@ $(document).ready(function () {
           return data;
         },
       },
-      { targets: 5, visible: false, searchable: true },
+      { targets: 6, visible: false, searchable: true },
     ],
     order: [[0, "asc"]],
     initComplete: function () {
@@ -80,7 +80,7 @@ $(document).ready(function () {
 
       // Restore status dropdown (filter against hidden Status Sort = col 5)
       const status = $("#filter-status").val();
-      if (status) api.column(5).search("(^" + status + "$)", true, false);
+      if (status) api.column(6).search("(^" + status + "$)", true, false);
 
       api.draw();
 
@@ -174,13 +174,13 @@ $(document).ready(function () {
     }
   });
 
-  // Status dropdown changes filter is applied to hidden col 5
+  // Status dropdown changes filter is applied to hidden col 6
   $("#filter-status").on("change", function () {
     if (this.value === "") {
-      allBooksTable.column(5).search("").draw();
+      allBooksTable.column(6).search("").draw();
     } else {
       allBooksTable
-        .column(5)
+        .column(6)
         .search("(^" + this.value + "$)", true, false)
         .draw();
     }

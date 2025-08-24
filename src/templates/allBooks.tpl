@@ -43,6 +43,7 @@
       <th class="desktop tablet" width="15%">Date Read</th>
       <th class="desktop tablet" width="10%">Rating</th>
       <th class="desktop tablet">Format</th>
+      <th class="desktop tablet">Source</th>
       <th class="desktop tablet">Status Sort</th>
     </tr>
     <tr>
@@ -51,6 +52,7 @@
       <th><input type="text" placeholder="Search Date Read" class="form-control" value="{$dateRead|escape}" /></th>
       <th><input type="text" placeholder="Search Rating" id="rating-status" class="form-control" value="{$rating|escape}" /></th>
       <th><input type="text" placeholder="Search Format" id="format-status" class="form-control" value="{$format|escape}" /></th>
+      <th><input type="text" placeholder="Search Source" id="source-status" class="form-control" value="{$source|escape}" /></th>
       <th>
           &nbsp;
       </th>
@@ -96,6 +98,7 @@
               <span class="text-muted">Unknown Format</span>
             {/if}
           </td>
+          <td>{$books[all].source}</td>
           <td id="statusSort_{$books[all].id}">
               {if $books[all].read == 0}Not Read
               {elseif $books[all].read == 1}Reading
@@ -112,6 +115,7 @@
         <th>Date Read</th>
         <th>Rating</th>
         <th>Format</th>
+        <th>Source</th>
         <th>Status Sort</th>
       </tr>
   </tfoot>
