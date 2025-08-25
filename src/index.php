@@ -39,6 +39,7 @@ use Aws\Signature\SignatureV4;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ClientException;
+use Symfony\Component\DomCrawler\Crawler;
 
 // have we got a config file?
 try {
@@ -57,11 +58,6 @@ $smarty->setCompileDir('templates_c');
 $smarty->setCacheDir('cache');
 $smarty->setConfigDir('configs');
 $smarty->registerPlugin("modifier", "date_format_tz", "smarty_modifier_date_format_tz");
-
-// is Amazon Associates enabled?
-if (!empty($accessKey)) {
-    $smarty->assign('kindleapi', 1);
-}
 
 // is Plex API enabled?
 if (!empty($plexToken)) {
@@ -1282,6 +1278,105 @@ switch ($cmd) {
 
         break;
 
+    case 'recordAmazon':
+
+        // Check if the request method is POST
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            // Get the raw POST data
+            $input = file_get_contents('php://input');
+            $data = json_decode($input, true);
+
+            // Validate the received data
+            if (isset($data['title'], $data['authors'], $data['url'], $data['isbn'])) {
+                $title = $data['title'];
+                $authors = $data['authors'];
+                $url = $data['url'];
+                $subject = $data['subject'];
+                $isbn = $data['isbn'];
+                $formatId = 2;
+                $sourceId = 1;
+                $read = 0;
+                $priority = 0;
+                $dateAdded = date('Y-m-d H:i:s');
+                $notes = null;
+                $list = 0;
+
+                // Check if book already exists (by author and title)
+                $stmt = $pdo->prepare("SELECT COUNT(*) FROM `book` WHERE `author` = :author AND `title` = :title AND `formatId` = :formatId");
+                $stmt->execute([':author' => $authors, ':title' => $title, ':formatId' => $formatId]);
+                $exists = $stmt->fetchColumn();
+
+                if (!$exists) {
+                    $insert = $pdo->prepare("INSERT INTO `book` (`author`, `title`, `genre`, `isbn`, `formatId`, `sourceId`, `read`, `priority`, `dateAdded`, `notes`, `list`, `url`)
+                                                        VALUES (:author, :title, :genre, :isbn, :formatId, :sourceId, :read, :priority, :dateAdded, :notes, :list, :url)");
+                    $insert->execute([
+                        ':author' => $authors,
+                        ':title' => $title,
+                        ':genre' => $subject,
+                        ':isbn' => $isbn,
+                        ':formatId' => $formatId,
+                        ':sourceId' => $sourceId,
+                        ':read' => $read,
+                        ':priority' => $priority,
+                        ':dateAdded' => $dateAdded,
+                        ':notes' => $notes,
+                        ':list' => $list,
+                        ':url' => $url
+                    ]);
+
+                    $bookId = $pdo->lastInsertId();
+                    $insertBookSource = $pdo->prepare("INSERT INTO `bookSource` (`book`, `source`) VALUES (:bookId, :sourceId)");
+                    $insertBookSource->execute([
+                        ':bookId' => $bookId,
+                        ':sourceId' => $sourceId
+                    ]);
+
+                    // Return a success response
+                    $_SESSION['error'] = 'Book recorded successfully.';
+                    echo json_encode(['success' => true]);
+                } else {
+                    $stmtSource = $pdo->prepare("SELECT COUNT(*) FROM `bookSource` WHERE `book` = (SELECT id FROM `book` WHERE `author` = :author AND `title` = :title AND `formatId` = :formatId) AND `source` = :sourceId");
+                    $stmtSource->execute([
+                        ':author' => $author,
+                        ':title' => $title,
+                        ':formatId' => $formatId,
+                        ':sourceId' => $sourceId
+                    ]);
+                    $sourceExists = $stmtSource->fetchColumn();
+
+                    if (!$sourceExists) {
+                        // Get the book id
+                        $stmtBookId = $pdo->prepare("SELECT id FROM `book` WHERE `author` = :author AND `title` = :title AND `formatId` = :formatId");
+                        $stmtBookId->execute([
+                            ':author' => $author,
+                            ':title' => $title,
+                            ':formatId' => $formatId
+                        ]);
+                        $existingBookId = $stmtBookId->fetchColumn();
+
+                        if ($existingBookId) {
+                            $insertBookSource = $pdo->prepare("INSERT INTO `bookSource` (`book`, `source`) VALUES (:bookId, :sourceId)");
+                            $insertBookSource->execute([
+                                ':bookId' => $existingBookId,
+                                ':sourceId' => $sourceId
+                            ]);
+                        }
+                    }
+                    // Return a success response
+                    $_SESSION['error'] = 'Book already in database.';
+                    echo json_encode(['success' => true]);
+                }
+            } else {
+                // Return an error response if the data is invalid
+                echo json_encode(['success' => false, 'error' => 'Invalid data received.']);
+            }
+        } else {
+            // Return an error response if the request method is not POST
+            echo json_encode(['success' => false, 'error' => 'Invalid request method.']);
+        }
+
+        break;
+
     case 'searchISBN':
 
         $smarty->assign('header', 'Scan for a book by ISBN');
@@ -1296,66 +1391,34 @@ switch ($cmd) {
 
     case 'searchAmazon':
 
-        $payload = json_encode([
-            "Keywords" => "The Silent Patient Alex Michaelides",
-            "SearchIndex" => "KindleStore",
-            "Resources" => [
-                "ItemInfo.Title",
-                "ItemInfo.ByLineInfo",
-                "Offers.Listings.Price"
-            ],
-            "PartnerTag" => $associateTag,
-            "PartnerType" => "Associates",
-            "Marketplace" => "www.amazon.co.uk"
-        ]);
+        $smarty->assign('header', 'Search for a book by Amazon link');
+        $smarty->display('searchAmazon.tpl');
+        break;
 
-        $credentials = new Credentials($accessKey, $secretKey);
-        $request = new Request(
-            'POST',
-            "https://{$host}{$uri}",
-            [
-                'content-encoding' => 'amz-1.0',
-                'content-type' => 'application/json; charset=utf-8',
-                'host' => $host,
-                'x-amz-target' => 'com.amazon.paapi5.v1.ProductAdvertisingAPIv1.SearchItems'
-            ],
-            $payload
-        );
+    case 'searchAmazonResults':
 
-        // Sign the request
-        $sigV4 = new SignatureV4('ProductAdvertisingAPI', $region);
-        $signedRequest = $sigV4->signRequest($request, $credentials);
-
-        $client = new Client();
-
-        try {
-            $response = $client->send($signedRequest);
-            $body = (string) $response->getBody();
-            $data = json_decode($body, true);
-
-            if (isset($data['Errors'])) {
-                echo "Amazon API returned an error:\n";
-                foreach ($data['Errors'] as $error) {
-                    echo "- [{$error['Code']}] {$error['Message']}\n";
-                }
-            } else {
-                echo json_encode($data, JSON_PRETTY_PRINT);
-            }
-        } catch (ClientException $e) {
-            $response = $e->getResponse();
-            $body = (string) $response->getBody();
-            $data = json_decode($body, true);
-
-            if (isset($data['Errors'])) {
-                foreach ($data['Errors'] as $error) {
-                    $_SESSION['error'] = "[{$error['Code']}] {$error['Message']}";
-                    header('Location: /');
-                    exit;
-                }
-            } else {
-                echo "Raw response: " . $body . "\n";
-            }
+        // Display the form to get book details
+        if (!isset($_REQUEST['url']) || empty($_REQUEST['url'])) {
+            $_SESSION['error'] = 'No URL provided';
+            header('Location: /');
+            exit;
+        } else {
+            $url = $_REQUEST['url'];
         }
+
+        //scrape the book details
+        $book = getBookDetails($url);
+
+        $smarty->assign('header', 'Book Details');
+        $smarty->assign('title', $book['title'] ?? 'Unknown Title');
+        $smarty->assign('author', $book['author'] ?? 'Unknown Author');
+        $smarty->assign('subject', $book['genre']);
+        $smarty->assign('format', $book['format']);
+        $smarty->assign('isbn', $book['isbn']);
+        $smarty->assign('url', $url);
+        $smarty->assign('recordDetails', 'Amazon');
+
+        $smarty->display('getBook.tpl');
         break;
 
     case 'getBook':
@@ -1422,6 +1485,8 @@ switch ($cmd) {
         $smarty->assign('title', $data['title'] ?? 'Unknown Title');
         $smarty->assign('author', $authorString);
         $smarty->assign('url', $_REQUEST['url']);
+        $smarty->assign('recordDetails', 'Csv');
+
         $smarty->display('getBook.tpl');
         break;
 
@@ -1669,6 +1734,134 @@ function smarty_modifier_date_format_tz($input, $format = "Y-m-d H:i:s", $timezo
         // Handle any exceptions, e.g., invalid timezone or timestamp
         return '';
     }
+}
+
+function getBookDetails(string $url): array
+{
+    $client = new Client([
+        'headers' => [
+            'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' .
+                '(KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
+        ]
+    ]);
+
+    $details = [
+        'title'  => '',
+        'author' => '',
+        'series' => '',
+        'isbn'   => '',
+        'genre'  => '',
+        'format' => '',   // now only Ebook / Physical / Audio book
+        'source' => $url
+    ];
+
+    $scrape = function (string $url) use ($client, &$details) {
+        try {
+            $response = $client->get($url);
+            $html = (string) $response->getBody();
+        } catch (\Exception $e) {
+            return false;
+        }
+
+        $crawler = new Crawler($html);
+
+        // Title
+        if ($crawler->filter('#productTitle')->count() && !$details['title']) {
+            $details['title'] = trim($crawler->filter('#productTitle')->text());
+        }
+
+        // Author
+        if ($crawler->filter('.author a')->count() && !$details['author']) {
+            $details['author'] = trim($crawler->filter('.author a')->first()->text());
+        }
+
+        // Series
+        if ($crawler->filter('#seriesBullet li a')->count() && !$details['series']) {
+            $details['series'] = trim($crawler->filter('#seriesBullet li a')->text());
+        }
+
+        // ISBNs
+        $crawler->filter('#detailBullets_feature_div li')->each(function (Crawler $node) use (&$details) {
+            $text = trim($node->text());
+            if (stripos($text, 'ISBN') !== false && !$details['isbn']) {
+                $details['isbn'] = cleanIsbn($text);
+            }
+        });
+
+        $crawler->filter('#productDetailsTable .content ul li')->each(function (Crawler $node) use (&$details) {
+            $text = trim($node->text());
+            if (stripos($text, 'ISBN') !== false && !$details['isbn']) {
+                $details['isbn'] = cleanIsbn($text);
+            }
+        });
+
+        $crawler->filter('#detailBulletsWrapper_feature_div li')->each(function (Crawler $node) use (&$details) {
+            $text = trim($node->text());
+            if (stripos($text, 'ISBN') !== false && !$details['isbn']) {
+                $details['isbn'] = cleanIsbn($text);
+            }
+        });
+
+        // Genre
+        if ($crawler->filter('#wayfinding-breadcrumbs_container ul li a')->count() && !$details['genre']) {
+            $details['genre'] = trim($crawler->filter('#wayfinding-breadcrumbs_container ul li a')->last()->text());
+        }
+
+        // Format (normalized)
+        if ($crawler->filter('#tmmSwatches li.selected span')->count()) {
+            $edition = strtolower($crawler->filter('#tmmSwatches li.selected span')->text());
+
+            if (strpos($edition, 'kindle') !== false || strpos($edition, 'ebook') !== false) {
+                $details['format'] = 'Ebook';
+            } elseif (strpos($edition, 'paperback') !== false || strpos($edition, 'hardcover') !== false) {
+                $details['format'] = 'Physical';
+            } elseif (strpos($edition, 'audible') !== false || strpos($edition, 'audiobook') !== false) {
+                $details['format'] = 'Audio book';
+            }
+        }
+
+        // Fallback: check title if still unknown
+        if (!$details['format']) {
+            $titleLower = strtolower($details['title']);
+            if (strpos($titleLower, 'kindle') !== false || strpos($titleLower, 'ebook') !== false) {
+                $details['format'] = 'Ebook';
+            } elseif (strpos($titleLower, 'audible') !== false || strpos($titleLower, 'audio') !== false) {
+                $details['format'] = 'Audiobook';
+            } else {
+                $details['format'] = 'Physical'; // assume physical if nothing else
+            }
+        }
+
+        return $crawler;
+    };
+
+    // scrape the given page
+    $crawler = $scrape($url);
+
+    // fallback: if ISBN still missing, try Paperback/Hardcover
+    if ($crawler && !$details['isbn']) {
+        $crawler->filter('#tmmSwatches li a')->each(function (Crawler $node) use (&$details, $scrape) {
+            $edition = strtolower($node->text());
+            if (strpos($edition, 'paperback') !== false || strpos($edition, 'hardcover') !== false) {
+                $href = $node->attr('href');
+                if ($href) {
+                    $altUrl = 'https://www.amazon.co.uk' . $href;
+                    $scrape($altUrl);
+                }
+            }
+        });
+    }
+
+    return $details;
+}
+
+// Helper: clean ISBN text
+function cleanIsbn(string $text): string
+{
+    $text = preg_replace('/ISBN[- ]?(1[03])?/i', '', $text);
+    $text = preg_replace('/[:\x{200E}\x{200F}\x{00A0}]/u', ' ', $text);
+    $text = trim(preg_replace('/\s+/', ' ', $text));
+    return $text;
 }
 
 function array_to_html($val, $var = FALSE)

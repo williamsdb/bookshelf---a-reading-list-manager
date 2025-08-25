@@ -18,5 +18,6 @@
         <li>CSV - a standard format CSV file. See <a href="https://github.com/williamsdb/bookshelf" target="_blank">here</a> for details</li>
         <li>Audible - from an <a href="https://openaudible.org/documentation#exporting_all_audiobook_data" target="_blank">OpenAudible export</a></li>
         <li>Kindle - from a <a href="https://chromewebstore.google.com/detail/amazonkindle-book-list-do/cnmmnejiklbbkapmjegmldhaejjiejbo" target="_blank">Kindle Book List Downloader export</a></li>
+        <li>Calibre - from a <a href="https://calibre-ebook.com/" target="_blank">Calibre library export</a></li>
     </ul>
 {include file="footer.tpl"}

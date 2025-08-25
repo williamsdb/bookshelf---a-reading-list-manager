@@ -66,7 +66,11 @@
               {if $truncateAfterColon}
                 {$books[all].title|regex_replace:"/[[:space:]]*:.*/":""}
               {else}
-                {$books[all].title}
+                {if $books[all].title != ""}
+                  {$books[all].title}
+                {else}
+                  <span class="text-muted">Unknown Title</span>
+                {/if}
               {/if}
             </a>
             {if $books[all].series}

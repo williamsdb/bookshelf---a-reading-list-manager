@@ -15,6 +15,9 @@
                 <td><strong>Subject</strong></td><td><span id="subject">{$subject}</span></td>
             </tr>
             <tr>
+                <td><strong>Format</strong></td><td><span>{$format}</span></td>
+            </tr>
+            <tr>
                 <td><strong>Publisher</strong></td><td><span>{$publisher}</span></td>
             </tr>
             <tr>
@@ -24,7 +27,7 @@
                 <td><strong>ISBN</strong></td><td><span id="isbn">{$isbn}</span></td>
             </tr>
             <tr>
-                <td><strong>Open Library Link</strong></td><td><button class="btn btn-primary" onclick="window.open('{$url}', '_blank')" style="display: block;">Open link</button></td>
+                <td><strong>Book Link</strong></td><td><button class="btn btn-primary" onclick="window.open('{$url}', '_blank')" style="display: block;">Open link</button></td>
             </tr>
         </tbody>
         </table>
@@ -34,7 +37,7 @@
             if (readButton) {
             readButton.addEventListener("click", () => {
                 console.log("Read button clicked");
-                recordDetails("Csv");
+                recordDetails("{$recordDetails}");
             });
             }
         </script>

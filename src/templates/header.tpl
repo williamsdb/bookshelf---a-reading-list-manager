@@ -114,9 +114,7 @@
 				<ul class="dropdown-menu" aria-labelledby="navbarDropdown">
 					<li><a class="dropdown-item" href="/scan">Scan Barcode</a></li>
 					<li><a class="dropdown-item" href="/searchISBN">Search by ISBN</a></li>
-					{if $kindleapi==1}
-						<li><a class="dropdown-item" href="/searchAmazon">Search Kindle Store</a></li>
-					{/if}
+					<li><a class="dropdown-item" href="/searchAmazon">Search by Amazon link</a></li>
 					<li><a class="dropdown-item" href="/searchOBL">Search Openbook Library</a></li>
 					<li><a class="dropdown-item" href="/addFile">Import from File</a></li>
 					{if $plexapi==1}

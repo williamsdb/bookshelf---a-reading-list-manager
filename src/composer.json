@@ -2,6 +2,9 @@
     "require": {
         "smarty/smarty": "^5.3",
         "aws/aws-sdk-php": "^3.352",
-        "twbs/bootstrap-icons": "^1.13"
+        "twbs/bootstrap-icons": "^1.13",
+        "guzzlehttp/guzzle": "^7.9",
+        "symfony/dom-crawler": "^7.3",
+        "symfony/css-selector": "^7.3"
     }
 }
