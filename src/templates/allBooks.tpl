@@ -63,13 +63,13 @@
       <tr>
           <td>
             <a href="/viewDetails/{$books[all].id}">
-              {if $truncateAfterColon}
-                {$books[all].title|regex_replace:"/[[:space:]]*:.*/":""}
+              {if $books[all].title == ""}
+                Unknown Title
               {else}
-                {if $books[all].title != ""}
-                  {$books[all].title}
+                {if $truncateAfterColon}
+                  {$books[all].title|regex_replace:"/[[:space:]]*:.*/":""}
                 {else}
-                  <span class="text-muted">Unknown Title</span>
+                    {$books[all].title}
                 {/if}
               {/if}
             </a>
