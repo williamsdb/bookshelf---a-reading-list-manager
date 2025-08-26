@@ -1233,7 +1233,7 @@ switch ($cmd) {
                     ]);
 
                     // Return a success response
-                    $_SESSION['error'] = 'Book recorded successfully.';
+                    $_SESSION['error'] = 'Book recorded successfully. View it <a href="/viewDetails/' . $bookId . '">here</a>.';
                     echo json_encode(['success' => true]);
                 } else {
                     $stmtSource = $pdo->prepare("SELECT COUNT(*) FROM `bookSource` WHERE `book` = (SELECT id FROM `book` WHERE `author` = :author AND `title` = :title AND `formatId` = :formatId) AND `source` = :sourceId");
@@ -1332,7 +1332,7 @@ switch ($cmd) {
                     ]);
 
                     // Return a success response
-                    $_SESSION['error'] = 'Book recorded successfully.';
+                    $_SESSION['error'] = 'Book recorded successfully. View it <a href="/viewDetails/' . $bookId . '">here</a>.';
                     echo json_encode(['success' => true]);
                 } else {
                     $stmtSource = $pdo->prepare("SELECT COUNT(*) FROM `bookSource` WHERE `book` = (SELECT id FROM `book` WHERE `author` = :author AND `title` = :title AND `formatId` = :formatId) AND `source` = :sourceId");
