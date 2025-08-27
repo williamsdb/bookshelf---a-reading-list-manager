@@ -160,6 +160,11 @@ try {
                         `book` INTEGER NOT NULL,
                         `source` INTEGER NOT NULL
                     );
+
+                CREATE TABLE IF NOT EXISTS `db` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT,
+                        `version` INTEGER NOT NULL
+                    );
         ";
 
         $pdo->exec($sql);
@@ -1518,9 +1523,15 @@ switch ($cmd) {
 
     case 'dbUpdate':
 
-        $insertBookSource = $pdo->prepare("INSERT INTO `source` (`name`)
-                VALUES ('Calibre');");
-        $insertBookSource->execute();
+        $sql = "CREATE TABLE IF NOT EXISTS `db` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT,
+                        `version` FLOAT NOT NULL
+                    );
+                    
+                INSERT INTO `db` (`version`)
+                VALUES ('1.0');";
+
+        $pdo->exec($sql);
 
         break;
 
