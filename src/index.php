@@ -174,11 +174,25 @@ try {
 
         // Set error mode to exceptions
         $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+        // what db version are we on?
+        $dbStmt = $pdo->prepare("SELECT `version` FROM `db`;");
+        $dbStmt->execute();
+        $result = $dbStmt->fetchAll(PDO::FETCH_ASSOC);
+        $dbVersion = $result[0]['version'];
+
+        // check the version and update accordingly
+        if ($dbVersion == 1) {
+            $sql = "INSERT INTO `list` (`name`)
+                    VALUES ('Wants');
+                    
+                    UPDATE `db` SET `version` = 1.1;";
+            $pdo->exec($sql);
+        }
     }
 } catch (PDOException $e) {
     die("Error: " . $e->getMessage());
 }
-
 
 // execute command
 switch ($cmd) {
@@ -713,6 +727,15 @@ switch ($cmd) {
         break;
 
     case 'updateList':
+
+        // Check if the id is set and is a valid number
+        if (!isset($_REQUEST['id']) || !is_numeric($_REQUEST['id'])) {
+            $_SESSION['error'] = 'Invalid list ID';
+            header('Location: /');
+            exit;
+        } else {
+            $id = intval($_REQUEST['id']);
+        }
 
         $listName = $_REQUEST['listName'];
         $default = isset($_REQUEST['default']) ? 1 : 0;
@@ -1520,20 +1543,6 @@ switch ($cmd) {
         // Redirect to the home page
         header('Location: /');
         exit;
-
-    case 'dbUpdate':
-
-        $sql = "CREATE TABLE IF NOT EXISTS `db` (
-                        `id` INTEGER PRIMARY KEY AUTOINCREMENT,
-                        `version` FLOAT NOT NULL
-                    );
-                    
-                INSERT INTO `db` (`version`)
-                VALUES ('1.0');";
-
-        $pdo->exec($sql);
-
-        break;
 
     case 'fetchPlex':
 
