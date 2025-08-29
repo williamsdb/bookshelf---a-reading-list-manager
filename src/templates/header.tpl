@@ -120,6 +120,7 @@
 					{if $plexapi==1}
 						<li><a class="dropdown-item" href="/fetchPlex">Import from Plex</a></li>
 					{/if}
+					<li><a class="dropdown-item" href="/manualAdd">Manually add</a></li>
 				</ul>
 				</li>
 			</ul>

@@ -58,6 +58,7 @@ $smarty->setCompileDir('templates_c');
 $smarty->setCacheDir('cache');
 $smarty->setConfigDir('configs');
 $smarty->registerPlugin("modifier", "date_format_tz", "smarty_modifier_date_format_tz");
+$smarty->registerPlugin('modifier', 'trim', 'smarty_modifier_trim');
 
 // is Plex API enabled?
 if (!empty($plexToken)) {
@@ -632,6 +633,37 @@ switch ($cmd) {
         $smarty->assign('book', $book);
         $smarty->assign('lists', $lists);
         $smarty->display('viewDetails.tpl');
+        break;
+
+    case 'manualAdd':
+
+        // Get all lists
+        $listStmt = $pdo->prepare("
+            SELECT 
+            id, 
+            name, 
+            `default`
+            FROM list
+            ORDER BY name ASC
+        ");
+        $listStmt->execute();
+        $lists = $listStmt->fetchAll(PDO::FETCH_ASSOC);
+        $smarty->assign('lists', $lists);
+
+        // Get all formats
+        $formatStmt = $pdo->prepare("SELECT id, name FROM format ORDER BY name ASC");
+        $formatStmt->execute();
+        $formats = $formatStmt->fetchAll(PDO::FETCH_ASSOC);
+        $smarty->assign('formats', $formats);
+
+        // Get all sources
+        $sourceStmt = $pdo->prepare("SELECT id, name FROM source ORDER BY name ASC");
+        $sourceStmt->execute();
+        $sources = $sourceStmt->fetchAll(PDO::FETCH_ASSOC);
+        $smarty->assign('sources', $sources);
+
+        $smarty->display('manualAdd.tpl');
+
         break;
 
     case 'lists':
@@ -1754,6 +1786,11 @@ function smarty_modifier_date_format_tz($input, $format = "Y-m-d H:i:s", $timezo
         // Handle any exceptions, e.g., invalid timezone or timestamp
         return '';
     }
+}
+
+function smarty_modifier_trim($string)
+{
+    return trim($string);
 }
 
 function getBookDetails(string $url): array

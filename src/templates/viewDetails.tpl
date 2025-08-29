@@ -9,8 +9,24 @@
             <tr><td width="15%"><strong>Genre</strong></td><td align="left">{$book.genre}</td></tr>
             <tr><td width="15%"><strong>ISBN</strong></td><td>{$book.isbn}</td></tr>
             <tr><td><strong>Link</strong></td><td>{if $book.url}<a href="{$book.url}" target="_blank">{$book.title}</a>{/if}</td></tr>
-            <tr><td width="15%"><strong>Format</strong></td><td><a href="/?format={$book.format|escape:'url'}">{$book.format}</a></td></tr>
-            <tr><td width="15%"><strong>Source</strong></td><td><a href="/?source={$book.source|escape:'url'}">{$book.source}</a></td></tr>
+            <tr>
+                <td width="15%"><strong>Format</strong></td>
+                <td>
+                    {assign var="formats" value=$book.format|split:","}
+                    {foreach from=$formats item=fmt name=srcLoop}
+                        <a href="/?format={$fmt|trim|escape:'url'}">{$fmt}</a>{if !$smarty.foreach.srcLoop.last}, {/if}
+                    {/foreach}
+                </td>
+            </tr>
+            <tr>
+                <td width="15%"><strong>Source</strong></td>
+                <td>
+                    {assign var="sources" value=$book.source|split:","}
+                    {foreach from=$sources item=src name=srcLoop}
+                        <a href="/?source={$src|trim|escape:'url'}">{$src}</a>{if !$smarty.foreach.srcLoop.last}, {/if}
+                    {/foreach}
+                </td>
+            </tr>
             <tr>
                 <td><strong>Lists</strong></td>
                 <td>
