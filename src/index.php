@@ -170,6 +170,9 @@ try {
                         `id` INTEGER PRIMARY KEY AUTOINCREMENT,
                         `version` INTEGER NOT NULL
                     );
+
+                INSERT INTO `db` (`version`)
+                VALUES (1.1); 
         ";
 
         $pdo->exec($sql);
@@ -201,6 +204,11 @@ try {
 
 // execute command
 switch ($cmd) {
+
+    case 'dbupdate':
+        $sql = "INSERT INTO `db` (`version`)
+                VALUES (1.1);";
+        $pdo->exec($sql);
 
     case 'addFile':
 
