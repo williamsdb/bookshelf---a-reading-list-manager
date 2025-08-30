@@ -27,7 +27,11 @@ ini_set('display_errors', 1);
 session_start();
 
 // Load Composer & parameters
-require __DIR__ . '/vendor/autoload.php';
+try {
+    require __DIR__ . '/vendor/autoload.php';
+} catch (\Throwable $th) {
+    die('vendor/autoload.php file not found. Have you run composer install?');
+}
 try {
     require __DIR__ . '/config.php';
 } catch (\Throwable $th) {
@@ -1765,34 +1769,6 @@ switch ($cmd) {
         break;
 }
 
-function smarty_modifier_date_format_tz($input, $format = "Y-m-d H:i:s", $timezone = 'UTC')
-{
-    try {
-        if ($input instanceof DateTime) {
-            // If $input is already a DateTime object, use it directly
-            $dateTime = $input;
-        } else {
-            // Assume $input is a Unix timestamp
-            $dateTime = new DateTime();
-            $dateTime->setTimestamp((int)$input); // Cast to int to avoid errors
-        }
-
-        // Set the timezone
-        $dateTime->setTimezone(new DateTimeZone($timezone));
-
-        // Return the formatted date
-        return $dateTime->format($format);
-    } catch (Exception $e) {
-        // Handle any exceptions, e.g., invalid timezone or timestamp
-        return '';
-    }
-}
-
-function smarty_modifier_trim($string)
-{
-    return trim($string);
-}
-
 function getBookDetails(string $url): array
 {
     $client = new Client([
@@ -1912,7 +1888,42 @@ function getBookDetails(string $url): array
     return $details;
 }
 
-// Helper: clean ISBN text
+/*************************************
+ * Smarty modifiers
+ *************************************
+ */
+function smarty_modifier_date_format_tz($input, $format = "Y-m-d H:i:s", $timezone = 'UTC')
+{
+    try {
+        if ($input instanceof DateTime) {
+            // If $input is already a DateTime object, use it directly
+            $dateTime = $input;
+        } else {
+            // Assume $input is a Unix timestamp
+            $dateTime = new DateTime();
+            $dateTime->setTimestamp((int)$input); // Cast to int to avoid errors
+        }
+
+        // Set the timezone
+        $dateTime->setTimezone(new DateTimeZone($timezone));
+
+        // Return the formatted date
+        return $dateTime->format($format);
+    } catch (Exception $e) {
+        // Handle any exceptions, e.g., invalid timezone or timestamp
+        return '';
+    }
+}
+
+function smarty_modifier_trim($string)
+{
+    return trim($string);
+}
+
+/*************************************
+ * Helper functions
+ *************************************
+ */
 function cleanIsbn(string $text): string
 {
     $text = preg_replace('/ISBN[- ]?(1[03])?/i', '', $text);

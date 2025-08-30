@@ -120,7 +120,9 @@
 					{if $plexapi==1}
 						<li><a class="dropdown-item" href="/fetchPlex">Import from Plex</a></li>
 					{/if}
-					<li><a class="dropdown-item" href="/manualAdd">Manually add</a></li>
+					{if $smarty.server.HTTP_HOST == 'bookshelf.762152.xyz'}
+						<li><a class="dropdown-item" href="/manualAdd">Manually add</a></li>
+					{/if}
 				</ul>
 				</li>
 			</ul>
@@ -134,3 +136,4 @@
 		{$error}
 		</div>
 	{/if}
+	
