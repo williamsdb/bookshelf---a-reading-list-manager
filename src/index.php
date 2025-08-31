@@ -1801,6 +1801,8 @@ function getBookDetails(string $url): array
 
     $details = [
         'title'  => '',
+        'subtitle'  => '',
+        'productBinding' => '',
         'author' => '',
         'series' => '',
         'isbn'   => '',
@@ -1822,6 +1824,16 @@ function getBookDetails(string $url): array
         // Title
         if ($crawler->filter('#productTitle')->count() && !$details['title']) {
             $details['title'] = trim($crawler->filter('#productTitle')->text());
+        }
+
+        // Subtitle
+        if ($crawler->filter('#productSubtitle')->count() && !$details['subtitle']) {
+            $details['subtitle'] = trim($crawler->filter('#productSubtitle')->text());
+        }
+
+        // productBinding
+        if ($crawler->filter('#productBinding')->count() && !$details['productBinding']) {
+            $details['productBinding'] = trim($crawler->filter('#productBinding')->text());
         }
 
         // Author
@@ -1864,13 +1876,34 @@ function getBookDetails(string $url): array
         // Format (normalized)
         if ($crawler->filter('#tmmSwatches li.selected span')->count()) {
             $edition = strtolower($crawler->filter('#tmmSwatches li.selected span')->text());
-
             if (strpos($edition, 'kindle') !== false || strpos($edition, 'ebook') !== false) {
                 $details['format'] = 'Ebook';
             } elseif (strpos($edition, 'paperback') !== false || strpos($edition, 'hardcover') !== false) {
                 $details['format'] = 'Physical';
             } elseif (strpos($edition, 'audible') !== false || strpos($edition, 'audiobook') !== false) {
-                $details['format'] = 'Audio book';
+                $details['format'] = 'Audiobook';
+            }
+        }
+
+        // Fallback: check subtitle if still unknown
+        if (!$details['format']) {
+            $subtitleLower = strtolower($details['subtitle']);
+            $subtitleLower = explode(' ', $subtitleLower, 2)[0];
+            if (strpos($subtitleLower, 'kindle') !== false || strpos($subtitleLower, 'ebook') !== false) {
+                $details['format'] = 'Ebook';
+            } elseif (strpos($subtitleLower, 'audible') !== false || strpos($subtitleLower, 'audio') !== false) {
+                $details['format'] = 'Audiobook';
+            } elseif (strpos($subtitleLower, 'paperback') !== false || strpos($subtitleLower, 'hardcover') !== false) {
+                $details['format'] = 'Physical';
+            }
+        }
+
+        // Fallback: check productBinding if still unknown
+        if (!$details['format']) {
+            $productBindingLower = strtolower($details['productBinding']);
+            $productBindingLower = explode(' ', $productBindingLower, 2)[0];
+            if (strpos($productBindingLower, 'audible') !== false || strpos($productBindingLower, 'audible') !== false) {
+                $details['format'] = 'Audiobook';
             }
         }
 
