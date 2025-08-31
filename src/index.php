@@ -205,11 +205,6 @@ try {
 // execute command
 switch ($cmd) {
 
-    case 'dbupdate':
-        $sql = "INSERT INTO `db` (`version`)
-                VALUES (1.1);";
-        $pdo->exec($sql);
-
     case 'addFile':
 
         $smarty->assign('header', 'Upload a file');
@@ -299,16 +294,16 @@ switch ($cmd) {
                     'Title' => [
                         'author' => 1,
                         'title' => 0,
-                        'series' => null,
-                        'seriesPosition' => null,
+                        'series' => 6,
+                        'seriesPosition' => 7,
                         'genre' => 2,
-                        'isbn' => null,
-                        'formatId' => 1,
+                        'isbn' => 8,
+                        'formatId' => 4,
                         'sourceId' => 5,
                         'url' => 3,
-                        'rating' => null,
-                        'review' => null,
-                        'dateRead' => null
+                        'rating' => 9,
+                        'review' => 10,
+                        'dateRead' => 11
                     ],
                     // Helen's file
                     'Date' => [
@@ -399,10 +394,28 @@ switch ($cmd) {
                                     $dateRead = sprintf('%04d-%02d-%02d', $dateParts[2], $dateParts[1], $dateParts[0]);
                                 }
                             }
-                        } else {
-                            $formatId = $map['formatId'];
-                            $read = 0;
+                        } elseif ($formatKey === 'Title') {
+                            $format = isset($map['formatId']) && isset($data[$map['formatId']]) ? trim($data[$map['formatId']]) : null;
+                            if (strtolower($format) === 'ebook') {
+                                $formatId = 2; // Kindle
+                            } elseif (strtolower($format) === 'audiobook') {
+                                $formatId = 3; // Audiobook
+                            } else {
+                                $formatId = 1; // Physical
+                            }
                             $dateRead = isset($map['dateRead']) && isset($data[$map['dateRead']]) ? trim($data[$map['dateRead']]) : null;
+                            if (isset($dateRead)) {
+                                $read = 2;
+                            } else {
+                                $read = 0;
+                            }
+                        } else {
+                            $dateRead = isset($map['dateRead']) && isset($data[$map['dateRead']]) ? trim($data[$map['dateRead']]) : null;
+                            if (isset($dateRead)) {
+                                $read = 2;
+                            } else {
+                                $read = 0;
+                            }
                         }
                         $sourceId = $map['sourceId'];
                         $priority = 0;

@@ -59,10 +59,10 @@
                     </select>
                 </td>
             </tr>
-            <tr class="readDetails" style="display:none;">
+            <tr class="readDetails" style="visibility: hidden;">
                 <td><strong>Date Read</strong></td>
                 <td>
-                    <input type="date" class="form-control" name="dateTime" step="1" id="datetimePicker" required value="{$book.dateRead|date_format:'%Y-%m-%d'}">
+                    <input type="datetime-local" class="form-control" name="dateTime" step="1" id="datetimePicker" required="">
                     <div id="error-message" style="color: red; display: none;">The date must be in the past.</div>
                 </td>
             </tr>
