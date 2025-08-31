@@ -743,3 +743,94 @@ function fetchBookDetails(isbn) {
       resultDiv.innerHTML = `Error fetching book details: ${error.message}`;
     });
 }
+
+// custom.js
+
+(() => {
+  "use strict";
+
+  // Get the stored theme, if any
+  const storedTheme = localStorage.getItem("theme");
+
+  // Figure out what theme we should use
+  const getPreferredTheme = () => {
+    if (storedTheme) {
+      return storedTheme;
+    }
+
+    return window.matchMedia("(prefers-color-scheme: dark)").matches
+      ? "dark"
+      : "light";
+  };
+
+  // Actually apply the theme to <html>
+  const setTheme = function (theme) {
+    if (theme === "auto") {
+      document.documentElement.setAttribute(
+        "data-bs-theme",
+        window.matchMedia("(prefers-color-scheme: dark)").matches
+          ? "dark"
+          : "light"
+      );
+    } else {
+      document.documentElement.setAttribute("data-bs-theme", theme);
+    }
+  };
+
+  setTheme(getPreferredTheme());
+
+  // Re-apply if system theme changes and we’re in auto
+  window
+    .matchMedia("(prefers-color-scheme: dark)")
+    .addEventListener("change", () => {
+      if (localStorage.getItem("theme") === "auto") {
+        setTheme("auto");
+      }
+    });
+
+  // When the page is fully loaded, wire up the dropdown buttons
+  window.addEventListener("DOMContentLoaded", () => {
+    const themeSwitcher = document.querySelector("#bd-theme");
+
+    if (!themeSwitcher) {
+      return;
+    }
+
+    // Update the dropdown UI (checkmark + icon in button)
+    const showActiveTheme = (theme) => {
+      const activeThemeIcon = document.querySelector(".theme-icon-active use");
+      const btnToActivate = document.querySelector(
+        `[data-bs-theme-value="${theme}"]`
+      );
+      const svgOfActiveBtn = btnToActivate
+        .querySelector("svg use")
+        .getAttribute("href");
+
+      // Remove .active and aria-pressed
+      document.querySelectorAll("[data-bs-theme-value]").forEach((el) => {
+        el.classList.remove("active");
+        el.setAttribute("aria-pressed", "false");
+      });
+
+      // Activate the chosen button
+      btnToActivate.classList.add("active");
+      btnToActivate.setAttribute("aria-pressed", "true");
+
+      // Swap the icon in the toggle button
+      activeThemeIcon.setAttribute("href", svgOfActiveBtn);
+    };
+
+    // Initial state
+    showActiveTheme(getPreferredTheme());
+
+    // Handle clicks
+    document.querySelectorAll("[data-bs-theme-value]").forEach((toggle) => {
+      toggle.addEventListener("click", () => {
+        const theme = toggle.getAttribute("data-bs-theme-value");
+        localStorage.setItem("theme", theme);
+        setTheme(theme);
+        showActiveTheme(theme);
+      });
+    });
+  });
+})();

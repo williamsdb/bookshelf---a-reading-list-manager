@@ -8,8 +8,10 @@
             id="book-title"
             placeholder="Enter book title or part of it"
             required
+            class="form-control" 
+            style="width: 50%;"
         />
-        <button type="submit" class="btn btn-primary">Search</button>
+        <button type="submit" class="btn btn-primary" style="margin: 10px 0;">Search</button>
     </form>
     <table id="search-table" class="display" style="width: 100%">
     <thead>

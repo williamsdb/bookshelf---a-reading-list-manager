@@ -6,10 +6,12 @@
         <input
             type="text"
             name="url"
+            class="form-control"
             placeholder="Enter Amazon link"
+            style="width: 50%;"
             required
         />
-        <button type="submit" class="btn btn-primary">Search</button>
+        <button type="submit" class="btn btn-primary" style="margin-top: 10px;">Search</button>
     </form>
 
 {include file="footer.tpl"}

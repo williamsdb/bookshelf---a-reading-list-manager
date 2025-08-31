@@ -323,3 +323,19 @@ select.with-icons {
   border: 1px solid #003eaa;
   margin-top: 12px;
 }
+
+/* Show light logo by default */
+.logo-dark {
+  display: none;
+}
+.logo-light {
+  display: inline;
+}
+
+/* If theme is dark, flip */
+[data-bs-theme="dark"] .logo-light {
+  display: none;
+}
+[data-bs-theme="dark"] .logo-dark {
+  display: inline;
+}

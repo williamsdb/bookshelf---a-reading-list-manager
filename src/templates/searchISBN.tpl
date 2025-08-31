@@ -8,8 +8,10 @@
             name="isbn"
             placeholder="Enter ISBN number"
             required
+            class="form-control"
+            style="width: 50%;"
         />
-        <button type="submit" class="btn btn-primary">Search</button>
+        <button type="submit" class="btn btn-primary" style="margin-top: 10px;">Search</button>
     </form>
 
     <div id="result"></div>
