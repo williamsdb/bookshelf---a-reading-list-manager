@@ -339,3 +339,15 @@ select.with-icons {
 [data-bs-theme="dark"] .logo-dark {
   display: inline;
 }
+
+div.dataTables_wrapper div.dataTables_length {
+  margin-top: 0.5em; /* space above */
+  margin-left: 1em; /* space between info and length */
+}
+
+@media (max-width: 768px) {
+  div.dataTables_wrapper div.dataTables_length {
+    display: block;
+    margin-top: 0.75em;
+  }
+}

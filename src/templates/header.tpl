@@ -24,7 +24,7 @@
 	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" />
 	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css?v=1.00" />
 	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
-	<link rel="stylesheet" href="/assets/css/custom.css?v=1.16">
+	<link rel="stylesheet" href="/assets/css/custom.css?v=1.18">
 
 	<!-- Favicon -->
 	<link rel="shortcut icon" type="image/png" href="/assets/brand/favicon.png">

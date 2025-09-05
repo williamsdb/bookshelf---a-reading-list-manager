@@ -198,20 +198,24 @@ $(document).ready(function () {
       method: "GET",
       data: { title: query },
       success: function (data) {
-        oblTable.clear();
-        data.docs.forEach((book) => {
-          const title = book.title || "Unknown Title";
-          const author = book.author_name
-            ? book.author_name.join(", ")
-            : "Unknown Author";
-          const link = `https://openlibrary.org${book.key}`;
-          oblTable.row.add([
-            `<a href="/getBook?url=${encodeURIComponent(link)}">${title}</a>`,
-            author,
-            `<a href="${link}" target="_blank">Link</a>`,
-          ]);
-        });
-        oblTable.draw();
+        if (data.numFound > 0) {
+          oblTable.clear();
+          data.docs.forEach((book) => {
+            const title = book.title || "Unknown Title";
+            const author = book.author_name
+              ? book.author_name.join(", ")
+              : "Unknown Author";
+            const link = `https://openlibrary.org${book.key}`;
+            oblTable.row.add([
+              `<a href="/getBook?url=${encodeURIComponent(link)}">${title}</a>`,
+              author,
+              `<a href="${link}" target="_blank">Link</a>`,
+            ]);
+          });
+          oblTable.draw();
+        } else {
+          alert("No results found.");
+        }
       },
       error: function () {
         alert("An error occurred while fetching data.");
