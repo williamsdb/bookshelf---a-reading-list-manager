@@ -11,8 +11,6 @@
  * @link       https://github.com/williamsdb/bookshelf Bookshelf on GitHub
  * @see        https://www.spokenlikeageek.com/tag/booklist-a-reading-list-manager/ Blog post
  *
- * ARGUMENTS
- *
  */
 
 class bookshelfException extends Exception {}
@@ -141,7 +139,7 @@ try {
                     );
 
                 INSERT INTO `source` (`name`)
-                VALUES ('Kindle'), ('Audible'), ('Scan'), ('Search'), ('CSV'), ('Plex'), ('Calibre');
+                VALUES ('Kindle'), ('Audible'), ('Scan'), ('Search'), ('CSV'), ('Plex'), ('Calibre'), ('Manual');
 
                 CREATE TABLE IF NOT EXISTS `list` (
                         `id` INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -172,7 +170,7 @@ try {
                     );
 
                 INSERT INTO `db` (`version`)
-                VALUES (1.1); 
+                VALUES (1.2); 
         ";
 
         $pdo->exec($sql);
@@ -195,6 +193,12 @@ try {
                     VALUES ('Wants');
                     
                     UPDATE `db` SET `version` = 1.1;";
+            $pdo->exec($sql);
+        } elseif ($dbVersion == 1.1) {
+            $sql = "INSERT INTO `source` (`name`)
+                    VALUES ('Manual');
+                    
+                    UPDATE `db` SET `version` = 1.2;";
             $pdo->exec($sql);
         }
     }
@@ -689,6 +693,223 @@ switch ($cmd) {
 
         $smarty->display('manualAdd.tpl');
 
+        break;
+
+    case 'seriesSearch':
+
+        // Get series suggestions
+        $seriesStmt = $pdo->prepare("
+            SELECT DISTINCT `series`
+            FROM `book`
+            WHERE `series` LIKE :query
+            LIMIT 10
+        ");
+        $seriesStmt->bindValue(':query', '%' . $_REQUEST['q'] . '%', PDO::PARAM_STR);
+        $seriesStmt->execute();
+
+        // Fetch as plain array of strings
+        $series = $seriesStmt->fetchAll(PDO::FETCH_COLUMN);
+
+        echo json_encode($series);
+
+        break;
+
+    case 'authorSearch':
+
+        // Get author suggestions
+        $authorStmt = $pdo->prepare("
+            SELECT DISTINCT `author`
+            FROM `book`
+            WHERE `author` LIKE :query
+            LIMIT 10
+        ");
+        $authorStmt->bindValue(':query', '%' . $_REQUEST['q'] . '%', PDO::PARAM_STR);
+        $authorStmt->execute();
+
+        // Fetch as plain array of strings
+        $authors = $authorStmt->fetchAll(PDO::FETCH_COLUMN);
+
+        echo json_encode($authors);
+
+        break;
+
+    case 'createBook':
+
+        // Only accept POST
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $_SESSION['error'] = 'Invalid request.';
+            header('Location: /manualAdd');
+            exit;
+        }
+
+        // Collect and sanitize inputs (fallbacks included)
+        $title  = trim($_POST['titleInput'] ?? $_POST['title'] ?? '');
+        $author = trim($_POST['authorInput'] ?? $_POST['author'] ?? '');
+        $series = trim($_POST['seriesInput'] ?? $_POST['series'] ?? '');
+        $seriesPosRaw = trim($_POST['numberInput'] ?? $_POST['seriesPosition'] ?? '');
+        $seriesPosition = ($seriesPosRaw === '' ? null : (int)$seriesPosRaw);
+        $genre  = trim($_POST['genreInput'] ?? $_POST['genre'] ?? '');
+        $isbn   = trim($_POST['isbnInput'] ?? $_POST['isbn'] ?? '');
+        $url    = trim($_POST['urlInput'] ?? $_POST['url'] ?? '');
+
+        $formatId = isset($_POST['formatList']) && is_numeric($_POST['formatList']) ? (int)$_POST['formatList'] : (isset($_POST['format']) && is_numeric($_POST['format']) ? (int)$_POST['format'] : null);
+        $sourceId = 8;
+
+        // Lists (multi-select)
+        $lists = $_POST['bookList'] ?? [];
+        if (!is_array($lists) && $lists !== '') {
+            $lists = [$lists];
+        }
+        $lists = array_values(array_unique(array_filter(array_map('intval', $lists))));
+
+        // Read status, date, rating, review
+        $status = isset($_POST['statusSelect']) ? (int)$_POST['statusSelect'] : (isset($_POST['status']) ? (int)$_POST['status'] : 0);
+        $rating = isset($_POST['ratingSelect']) && $_POST['ratingSelect'] !== '' ? (float)$_POST['ratingSelect'] : null;
+        $review = trim($_POST['reviewText'] ?? $_POST['review'] ?? '');
+
+        // Normalize/validate dateRead if read
+        $dateRead = null;
+        if ($status === 2) {
+            $dt = trim($_POST['datetimePicker'] ?? '');
+            if ($dt !== '') {
+                $dt = str_replace('T', ' ', $dt);
+                if (preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/', $dt)) {
+                    $dt .= ':00';
+                }
+                $ts = strtotime($dt);
+                if ($ts !== false && $ts <= time()) {
+                    $dateRead = date('Y-m-d H:i:s', $ts);
+                } else {
+                    $dateRead = date('Y-m-d H:i:s');
+                }
+            } else {
+                $dateRead = date('Y-m-d H:i:s');
+            }
+        }
+
+        // Basic validation
+        if ($title === '' || $author === '' || !$formatId) {
+            $_SESSION['error'] = 'Title, author and format are required.';
+            header('Location: /manualAdd');
+            exit;
+        }
+
+        // Optional: rewrite Amazon .com to .co.uk if configured
+        if (!empty($rewriteAmazonLinks) && $rewriteAmazonLinks && $url !== '') {
+            $parts = parse_url($url);
+            if (!empty($parts['host']) && preg_match('/(^|\.)amazon\.com$/i', $parts['host'])) {
+                $parts['host'] = 'www.amazon.co.uk';
+                $scheme = $parts['scheme'] ?? 'https';
+                $path = $parts['path'] ?? '';
+                $query = isset($parts['query']) ? '?' . $parts['query'] : '';
+                $fragment = isset($parts['fragment']) ? '#' . $parts['fragment'] : '';
+                $url = $scheme . '://' . $parts['host'] . $path . $query . $fragment;
+            }
+        }
+
+        try {
+            $pdo->beginTransaction();
+
+            // Check for existing book (author + title + format)
+            $chk = $pdo->prepare('SELECT id FROM book WHERE author = :author AND title = :title AND formatId = :formatId LIMIT 1');
+            $chk->execute([
+                ':author'   => $author,
+                ':title'    => $title,
+                ':formatId' => $formatId
+            ]);
+            $existingId = $chk->fetchColumn();
+
+            if ($existingId) {
+                $bookId = (int)$existingId;
+
+                // Ensure bookSource link exists (if source specified)
+                if ($sourceId) {
+                    $bs = $pdo->prepare('SELECT COUNT(*) FROM bookSource WHERE book = :book AND source = :source');
+                    $bs->execute([':book' => $bookId, ':source' => $sourceId]);
+                    if ((int)$bs->fetchColumn() === 0) {
+                        $insBs = $pdo->prepare('INSERT INTO bookSource (book, source) VALUES (:book, :source)');
+                        $insBs->execute([':book' => $bookId, ':source' => $sourceId]);
+                    }
+                }
+
+                // Add to lists (avoid duplicates)
+                if (!empty($lists)) {
+                    $insList = $pdo->prepare('INSERT INTO bookList (book, list) VALUES (:book, :list)');
+                    foreach ($lists as $lid) {
+                        if ($lid <= 0) continue;
+                        $existsList = $pdo->prepare('SELECT COUNT(*) FROM bookList WHERE book = :book AND list = :list');
+                        $existsList->execute([':book' => $bookId, ':list' => $lid]);
+                        if ((int)$existsList->fetchColumn() === 0) {
+                            $insList->execute([':book' => $bookId, ':list' => $lid]);
+                        }
+                    }
+                }
+
+                $pdo->commit();
+                $_SESSION['error'] = 'Book already in database.';
+                header('Location: /' . $bookId);
+                exit;
+            }
+
+            // Create new book
+            $ins = $pdo->prepare('
+                INSERT INTO book
+                    (author, title, genre, series, seriesPosition, isbn, formatId, sourceId, read, priority, dateAdded, dateRead, rating, review, notes, list, url)
+                VALUES
+                    (:author, :title, :genre, :series, :seriesPosition, :isbn, :formatId, :sourceId, :read, :priority, :dateAdded, :dateRead, :rating, :review, :notes, :list, :url)
+            ');
+
+            $ins->execute([
+                ':author'        => $author,
+                ':title'         => $title,
+                ':genre'         => ($genre !== '' ? $genre : null),
+                ':series'        => ($series !== '' ? $series : null),
+                ':seriesPosition' => $seriesPosition,
+                ':isbn'          => ($isbn !== '' ? $isbn : null),
+                ':formatId'      => $formatId,
+                ':sourceId'      => $sourceId,
+                ':read'          => $status,
+                ':priority'      => 0,
+                ':dateAdded'     => date('Y-m-d H:i:s'),
+                ':dateRead'      => $dateRead,
+                ':rating'        => $rating,
+                ':review'        => ($review !== '' ? $review : null),
+                ':notes'         => null,
+                ':list'          => 0,
+                ':url'           => ($url !== '' ? $url : null)
+            ]);
+
+            $bookId = (int)$pdo->lastInsertId();
+
+            // Record primary source in bookSource
+            if ($sourceId) {
+                $insBs = $pdo->prepare('INSERT INTO bookSource (book, source) VALUES (:book, :source)');
+                $insBs->execute([':book' => $bookId, ':source' => $sourceId]);
+            }
+
+            // Add to lists
+            if (!empty($lists)) {
+                $insList = $pdo->prepare('INSERT INTO bookList (book, list) VALUES (:book, :list)');
+                foreach ($lists as $lid) {
+                    if ($lid > 0) {
+                        $insList->execute([':book' => $bookId, ':list' => $lid]);
+                    }
+                }
+            }
+
+            $pdo->commit();
+
+            $_SESSION['error'] = 'Book created successfully.';
+            header('Location: /viewDetails/' . $bookId);
+            exit;
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            $_SESSION['error'] = 'There was a problem saving the book: ' . $e->getMessage();
+            header('Location: /manualAdd');
+            exit;
+        }
         break;
 
     case 'lists':
@@ -1589,6 +1810,10 @@ switch ($cmd) {
         // Prepare the SQL statement to delete the book
         $deleteStmt = $pdo->prepare("DELETE FROM book WHERE id = :id");
         $deleteStmt->bindParam(':id', $id, PDO::PARAM_INT);
+
+        // Also delete from bookSource and bookList to maintain referential integrity
+        $pdo->prepare("DELETE FROM bookSource WHERE book = :id")->execute([':id' => $id]);
+        $pdo->prepare("DELETE FROM bookList WHERE book = :id")->execute([':id' => $id]);
 
         // Execute the deletion
         if ($deleteStmt->execute()) {
