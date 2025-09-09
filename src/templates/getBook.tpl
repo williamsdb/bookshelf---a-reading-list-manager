@@ -31,7 +31,7 @@
             </tr>
         </tbody>
         </table>
-        <button id="read-button" class="btn btn-primary">Add to Reading List</button>
+        <button id="read-button" class="btn btn-primary">Add</button>
         <script>
             const readButton = document.getElementById("read-button");
             if (readButton) {

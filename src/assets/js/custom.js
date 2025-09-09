@@ -730,7 +730,7 @@ function fetchBookDetails(isbn) {
                 </tr>
                 </tbody>
                 </table>
-                <button id="read-button" class="btn btn-primary">Add to Reading List</button>
+                <button id="read-button" class="btn btn-primary">Add</button>
             `;
         h2title.style.display = "none";
         // Now attach the listener
