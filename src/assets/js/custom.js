@@ -704,7 +704,7 @@ function fetchBookDetails(isbn) {
                     )}</span></td>
                 </tr>
                 <tr>
-                    <td><strong>Subject</strong></td><td><span id="subject">${
+                    <td><strong>Genre</strong></td><td><span id="subject">${
                       data.subject
                     }</span></td>
                 </tr>

@@ -1468,7 +1468,12 @@ switch ($cmd) {
                 'authors' => array_map(function ($author) {
                     return $author['name'];
                 }, $bookData['authors']),
-                'publisher' => $bookData['publishers'][0]['name'],
+                'publisher' => (
+                    isset($bookData['publishers']) &&
+                    is_array($bookData['publishers']) &&
+                    isset($bookData['publishers'][0]['name']) &&
+                    $bookData['publishers'][0]['name'] !== ''
+                ) ? $bookData['publishers'][0]['name'] : 'Unknown',
                 'publish_date' => $bookData['publish_date'],
                 'url' => $bookData['url'],
                 'subject' => (

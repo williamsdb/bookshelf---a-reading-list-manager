@@ -12,7 +12,7 @@
                 <td><strong>Author(s)</strong></td><td><span id="authors">{$author}</span></td>
             </tr>
             <tr>
-                <td><strong>Subject</strong></td><td><span id="subject">{$subject}</span></td>
+                <td><strong>Genre</strong></td><td><span id="subject">{$subject}</span></td>
             </tr>
             <tr>
                 <td><strong>Format</strong></td><td><span>{$format}</span></td>
