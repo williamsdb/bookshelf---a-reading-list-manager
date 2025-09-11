@@ -213,6 +213,7 @@ try {
                     UPDATE `db` SET `version` = 1.2;";
             $pdo->exec($sql);
         } elseif ($dbVersion == 1.2) {
+            echo '1<br>';
             $sql = "CREATE TABLE IF NOT EXISTS `bookGenre` (
                         `book_id` INTEGER NOT NULL,
                         `genre_id` INTEGER NOT NULL,
@@ -228,6 +229,7 @@ try {
                     
                     UPDATE `db` SET `version` = 1.3;";
             $pdo->exec($sql);
+            echo '2<br>';
 
             // now migrate the old genre to the new tables
             $books = $pdo->query("SELECT id, genre FROM book")->fetchAll(PDO::FETCH_ASSOC);
@@ -246,9 +248,11 @@ try {
             $linkBook = $pdo->prepare("
                 INSERT OR IGNORE INTO bookGenre (book_id, genre_id) VALUES (:book_id, :genre_id)
             ");
+            echo '3<br>';
 
             foreach ($books as $book) {
                 $genres = preg_split('/\s*\|\s*/', $book['genre']); // split on pipe with optional spaces
+                echo '4<br>';
 
                 foreach ($genres as $g) {
                     $g = trim($g);
@@ -260,6 +264,7 @@ try {
                     // fetch the id explicitly
                     $getGenreId->execute([':name' => $g]);
                     $genreId = $getGenreId->fetchColumn();
+                    echo '5<br>';
 
                     // link book to genre
                     $linkBook->execute([
