@@ -287,11 +287,19 @@ $(document).ready(function () {
     //    console.log("Unselected:", e.params.data);
   });
 
-  $("#listSelect").on("change", function () {
+  $("#listSelectHome").on("change", function () {
     const selectedId = $(this).val();
 
     if (selectedId) {
       window.location.href = "/?id=" + encodeURIComponent(selectedId);
+    }
+  });
+
+  $("#listSelect").on("change", function () {
+    const selectedId = $(this).val();
+
+    if (selectedId) {
+      window.location.href = "lists/?id=" + encodeURIComponent(selectedId);
     }
   });
 

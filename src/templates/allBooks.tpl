@@ -9,7 +9,7 @@
                     <label for="listSelect" style="margin-top: 7px;">Filter by list: </label>
                 </div>
                 <div class="col-auto">
-                    <select id="listSelect" name="list_id" class="form-select">
+                    <select id="listSelectHome" name="list_id" class="form-select">
                             <option value="0"{if $defaultListId == 0} selected{/if}>All Books</option>
                         {foreach from=$lists item=list}
                             <option value="{$list.id}"{if $list.id == $defaultListId} selected{/if}>{$list.name}</option>

@@ -108,7 +108,6 @@ try {
                         `id` INTEGER PRIMARY KEY AUTOINCREMENT,
                         `author` TEXT NOT NULL,
                         `title` TEXT NOT NULL,
-                        `genre` TEXT NULL,
                         `series` TEXT NULL,
                         `seriesPosition` INTEGER NULL,
                         `isbn` TEXT NULL,
@@ -169,8 +168,21 @@ try {
                         `version` INTEGER NOT NULL
                     );
 
+                CREATE TABLE genre (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL UNIQUE
+                );
+
+                CREATE TABLE bookGenre (
+                    book_id INT NOT NULL,
+                    genre_id INT NOT NULL,
+                    PRIMARY KEY (book_id, genre_id),
+                    FOREIGN KEY (book_id) REFERENCES book(id) ON DELETE CASCADE,
+                    FOREIGN KEY (genre_id) REFERENCES genre(id) ON DELETE CASCADE
+                );
+
                 INSERT INTO `db` (`version`)
-                VALUES (1.2); 
+                VALUES (1.4); 
         ";
 
         $pdo->exec($sql);
@@ -199,6 +211,59 @@ try {
                     VALUES ('Manual');
                     
                     UPDATE `db` SET `version` = 1.2;";
+            $pdo->exec($sql);
+        } elseif ($dbVersion == 1.2) {
+            $sql = "CREATE TABLE IF NOT EXISTS `bookGenre` (
+                        `book_id` INTEGER NOT NULL,
+                        `genre_id` INTEGER NOT NULL,
+                        PRIMARY KEY (`book_id`, `genre_id`),
+                        FOREIGN KEY (`book_id`) REFERENCES `book`(`id`) ON DELETE CASCADE,
+                        FOREIGN KEY (`genre_id`) REFERENCES `genre`(`id`) ON DELETE CASCADE
+                    );
+                    
+                    CREATE TABLE genre (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name TEXT NOT NULL UNIQUE
+                    );
+                    
+                    UPDATE `db` SET `version` = 1.3;";
+            $pdo->exec($sql);
+
+            // now migrate the old genre to the new tables
+            $books = $pdo->query("SELECT id, genre FROM book")->fetchAll(PDO::FETCH_ASSOC);
+
+            $insertGenre = $pdo->prepare("
+                INSERT INTO genre (name) VALUES (:name)
+                ON CONFLICT(name) DO UPDATE SET name = excluded.name
+                RETURNING id
+            ");
+
+            $linkBook = $pdo->prepare("
+                INSERT OR IGNORE INTO bookGenre (book_id, genre_id) VALUES (:book_id, :genre_id)
+            ");
+
+            foreach ($books as $book) {
+                $genres = preg_split('/\s*\|\s*/', $book['genre']); // split on pipe with optional spaces
+
+                foreach ($genres as $g) {
+                    $g = trim($g);
+                    if ($g === '') continue;
+
+                    // insert or fetch genre id in one go
+                    $insertGenre->execute([':name' => $g]);
+                    $genreId = $insertGenre->fetchColumn();
+
+                    // link book to genre
+                    $linkBook->execute([
+                        ':book_id' => $book['id'],
+                        ':genre_id' => $genreId
+                    ]);
+                }
+            }
+        } elseif ($dbVersion == 1.3) {
+            $sql = "ALTER TABLE `book` DROP COLUMN `genre`;
+
+                    UPDATE `db` SET `version` = 1.4;";
             $pdo->exec($sql);
         }
     }
@@ -262,7 +327,10 @@ switch ($cmd) {
                         'isbn' => null,
                         'formatId' => 3,
                         'sourceId' => 2,
-                        'url' => 13
+                        'url' => 13,
+                        'rating' => null,
+                        'review' => null,
+                        'dateRead' => null
                     ],
                     // Kindle CSV
                     'ISBN / ASIN (Amazon ID)' => [
@@ -413,6 +481,22 @@ switch ($cmd) {
                             } else {
                                 $read = 0;
                             }
+                        } elseif ($formatKey === 'ISBN / ASIN (Amazon ID)' || $formatKey === 'author_sort') {
+                            $formatId = 2; // Kindle
+                            $dateRead = isset($map['dateRead']) && isset($data[$map['dateRead']]) ? trim($data[$map['dateRead']]) : null;
+                            if (isset($dateRead)) {
+                                $read = 2;
+                            } else {
+                                $read = 0;
+                            }
+                        } elseif ($formatKey === 'Key') {
+                            $formatId = 3; // Audiobook
+                            $dateRead = isset($map['dateRead']) && isset($data[$map['dateRead']]) ? trim($data[$map['dateRead']]) : null;
+                            if (isset($dateRead)) {
+                                $read = 2;
+                            } else {
+                                $read = 0;
+                            }
                         } else {
                             $dateRead = isset($map['dateRead']) && isset($data[$map['dateRead']]) ? trim($data[$map['dateRead']]) : null;
                             if (isset($dateRead)) {
@@ -445,14 +529,13 @@ switch ($cmd) {
                         $exists = $stmt->fetchColumn();
 
                         if (!$exists) {
-                            $insert = $pdo->prepare("INSERT INTO `book` (`author`, `title`,  `genre`, `isbn`, `formatId`, `sourceId`, `read`, `priority`, `dateAdded`, `dateRead`, `notes`, `list`, `url`, `series`, `seriesPosition`, `rating`, `review`)
-                                                        VALUES (:author, :title, :genre, :isbn, :formatId, :sourceId, :read, :priority, :dateAdded, :dateRead, :notes, :list, :url, :series, :seriesPosition, :rating, :review)");
+                            $insert = $pdo->prepare("INSERT INTO `book` (`author`, `title`, `isbn`, `formatId`, `sourceId`, `read`, `priority`, `dateAdded`, `dateRead`, `notes`, `list`, `url`, `series`, `seriesPosition`, `rating`, `review`)
+                                                        VALUES (:author, :title, :isbn, :formatId, :sourceId, :read, :priority, :dateAdded, :dateRead, :notes, :list, :url, :series, :seriesPosition, :rating, :review)");
                             $insert->execute([
                                 ':author' => $author,
                                 ':title' => $title,
                                 ':series' => $series,
                                 ':seriesPosition' => $seriesPosition,
-                                ':genre' => $genre,
                                 ':isbn' => $isbn,
                                 ':formatId' => $formatId,
                                 ':sourceId' => $sourceId,
@@ -473,6 +556,41 @@ switch ($cmd) {
                                 ':bookId' => $bookId,
                                 ':sourceId' => $sourceId
                             ]);
+
+
+                            // Handle genre(s) for the newly created book
+                            if (!empty($genre)) {
+                                // Allow multiple genres separated by comma or pipe
+                                $rawGenres = preg_split('/[;,]/', $genre);
+                                $selectGenre = $pdo->prepare('SELECT id FROM genre WHERE name = :name');
+                                $insertGenre = $pdo->prepare('INSERT INTO genre (name) VALUES (:name)');
+                                $linkGenre   = $pdo->prepare('INSERT OR IGNORE INTO bookGenre (book_id, genre_id) VALUES (:book_id, :genre_id)');
+
+                                foreach ($rawGenres as $g) {
+                                    $g = trim($g);
+                                    if ($g === '') {
+                                        continue;
+                                    }
+
+                                    // Try to find existing genre
+                                    $selectGenre->execute([':name' => $g]);
+                                    $genreId = $selectGenre->fetchColumn();
+
+                                    // Insert if not exists
+                                    if (!$genreId) {
+                                        $insertGenre->execute([':name' => $g]);
+                                        $genreId = (int)$pdo->lastInsertId();
+                                    } else {
+                                        $genreId = (int)$genreId;
+                                    }
+
+                                    // Link book to genre
+                                    $linkGenre->execute([
+                                        ':book_id'  => $bookId,
+                                        ':genre_id' => $genreId
+                                    ]);
+                                }
+                            }
                         } else {
                             $stmtSource = $pdo->prepare("SELECT COUNT(*) FROM `bookSource` WHERE `book` = (SELECT id FROM `book` WHERE `author` = :author AND `title` = :title AND `formatId` = :formatId) AND `source` = :sourceId");
                             $stmtSource->execute([
@@ -547,7 +665,12 @@ switch ($cmd) {
                     book.title,
                     book.series,
                     book.seriesPosition,
-                    book.genre, 
+                    (
+                        SELECT GROUP_CONCAT(g.name, ', ')
+                        FROM bookGenre bg
+                        JOIN genre g ON g.id = bg.genre_id
+                        WHERE bg.book_id = book.id
+                    ) AS genre,
                     book.isbn, 
                     format.name AS format, 
                     source.name AS source,
@@ -607,7 +730,12 @@ switch ($cmd) {
                     book.title, 
                     book.series, 
                     book.seriesPosition, 
-                    book.genre, 
+                    (
+                        SELECT GROUP_CONCAT(g.name, ', ')
+                        FROM bookGenre bg
+                        JOIN genre g ON g.id = bg.genre_id
+                        WHERE bg.book_id = book.id
+                    ) AS genre,
                     book.isbn, 
                     format.name AS format, 
                     (
@@ -733,6 +861,25 @@ switch ($cmd) {
 
         break;
 
+    case 'genreSearch':
+
+        // Get genre suggestions
+        $genreStmt = $pdo->prepare("
+            SELECT DISTINCT `name`
+            FROM `genre`
+            WHERE `name` LIKE :query
+            LIMIT 10
+        ");
+        $genreStmt->bindValue(':query', '%' . $_REQUEST['q'] . '%', PDO::PARAM_STR);
+        $genreStmt->execute();
+
+        // Fetch as plain array of strings
+        $genres = $genreStmt->fetchAll(PDO::FETCH_COLUMN);
+
+        echo json_encode($genres);
+
+        break;
+
     case 'createBook':
 
         // Only accept POST
@@ -854,15 +1001,14 @@ switch ($cmd) {
             // Create new book
             $ins = $pdo->prepare('
                 INSERT INTO book
-                    (author, title, genre, series, seriesPosition, isbn, formatId, sourceId, read, priority, dateAdded, dateRead, rating, review, notes, list, url)
+                    (author, title, series, seriesPosition, isbn, formatId, sourceId, read, priority, dateAdded, dateRead, rating, review, notes, list, url)
                 VALUES
-                    (:author, :title, :genre, :series, :seriesPosition, :isbn, :formatId, :sourceId, :read, :priority, :dateAdded, :dateRead, :rating, :review, :notes, :list, :url)
+                    (:author, :title, :series, :seriesPosition, :isbn, :formatId, :sourceId, :read, :priority, :dateAdded, :dateRead, :rating, :review, :notes, :list, :url)
             ');
 
             $ins->execute([
                 ':author'        => $author,
                 ':title'         => $title,
-                ':genre'         => ($genre !== '' ? $genre : null),
                 ':series'        => ($series !== '' ? $series : null),
                 ':seriesPosition' => $seriesPosition,
                 ':isbn'          => ($isbn !== '' ? $isbn : null),
@@ -880,6 +1026,40 @@ switch ($cmd) {
             ]);
 
             $bookId = (int)$pdo->lastInsertId();
+
+            // Handle genre(s) for the newly created book
+            if (!empty($genre)) {
+                // Allow multiple genres separated by comma or pipe
+                $rawGenres = preg_split('/[|,]/', $genre);
+                $selectGenre = $pdo->prepare('SELECT id FROM genre WHERE name = :name');
+                $insertGenre = $pdo->prepare('INSERT INTO genre (name) VALUES (:name)');
+                $linkGenre   = $pdo->prepare('INSERT OR IGNORE INTO bookGenre (book_id, genre_id) VALUES (:book_id, :genre_id)');
+
+                foreach ($rawGenres as $g) {
+                    $g = trim($g);
+                    if ($g === '') {
+                        continue;
+                    }
+
+                    // Try to find existing genre
+                    $selectGenre->execute([':name' => $g]);
+                    $genreId = $selectGenre->fetchColumn();
+
+                    // Insert if not exists
+                    if (!$genreId) {
+                        $insertGenre->execute([':name' => $g]);
+                        $genreId = (int)$pdo->lastInsertId();
+                    } else {
+                        $genreId = (int)$genreId;
+                    }
+
+                    // Link book to genre
+                    $linkGenre->execute([
+                        ':book_id'  => $bookId,
+                        ':genre_id' => $genreId
+                    ]);
+                }
+            }
 
             // Record primary source in bookSource
             if ($sourceId) {
@@ -912,7 +1092,7 @@ switch ($cmd) {
         }
         break;
 
-    case 'lists':
+    case 'manageLists':
 
         // Get all lists
         $listStmt = $pdo->prepare("SELECT id, name, `default`, (SELECT COUNT(*) FROM book JOIN `bookList` ON book.id = bookList.book WHERE bookList.list = list.id) AS book_count FROM list ORDER BY name ASC");
@@ -1392,7 +1572,7 @@ switch ($cmd) {
         $smarty->display('stats.tpl');
         break;
 
-    case 'oldhome':
+    case 'lists':
 
         // Check if the id is set and is a valid number
         if (!isset($_REQUEST['id']) || !is_numeric($_REQUEST['id'])) {
@@ -1407,7 +1587,6 @@ switch ($cmd) {
                     `book`.`id`, 
                     `book`.`author`, 
                     `book`.`title`, 
-                    `book`.`genre`, 
                     `book`.`isbn`, 
                     `format`.`name` AS `format`, 
                     `source`.`name` AS `source`,
@@ -1519,12 +1698,11 @@ switch ($cmd) {
                 $exists = $stmt->fetchColumn();
 
                 if (!$exists) {
-                    $insert = $pdo->prepare("INSERT INTO `book` (`author`, `title`, `genre`, `isbn`, `formatId`, `sourceId`, `read`, `priority`, `dateAdded`, `notes`, `list`, `url`)
-                                                        VALUES (:author, :title, :genre, :isbn, :formatId, :sourceId, :read, :priority, :dateAdded, :notes, :list, :url)");
+                    $insert = $pdo->prepare("INSERT INTO `book` (`author`, `title`, `isbn`, `formatId`, `sourceId`, `read`, `priority`, `dateAdded`, `notes`, `list`, `url`)
+                                                        VALUES (:author, :title, :isbn, :formatId, :sourceId, :read, :priority, :dateAdded, :notes, :list, :url)");
                     $insert->execute([
                         ':author' => $authors,
                         ':title' => $title,
-                        ':genre' => $subject,
                         ':isbn' => $isbn,
                         ':formatId' => $formatId,
                         ':sourceId' => $sourceId,
@@ -1542,6 +1720,40 @@ switch ($cmd) {
                         ':bookId' => $bookId,
                         ':sourceId' => $sourceId
                     ]);
+
+                    // Handle genre(s) for the newly created book
+                    if (!empty($subject)) {
+                        // Allow multiple genres separated by comma or pipe
+                        $rawGenres = preg_split('/[|,]/', $subject);
+                        $selectGenre = $pdo->prepare('SELECT id FROM genre WHERE name = :name');
+                        $insertGenre = $pdo->prepare('INSERT INTO genre (name) VALUES (:name)');
+                        $linkGenre   = $pdo->prepare('INSERT OR IGNORE INTO bookGenre (book_id, genre_id) VALUES (:book_id, :genre_id)');
+
+                        foreach ($rawGenres as $g) {
+                            $g = trim($g);
+                            if ($g === '') {
+                                continue;
+                            }
+
+                            // Try to find existing genre
+                            $selectGenre->execute([':name' => $g]);
+                            $genreId = $selectGenre->fetchColumn();
+
+                            // Insert if not exists
+                            if (!$genreId) {
+                                $insertGenre->execute([':name' => $g]);
+                                $genreId = (int)$pdo->lastInsertId();
+                            } else {
+                                $genreId = (int)$genreId;
+                            }
+
+                            // Link book to genre
+                            $linkGenre->execute([
+                                ':book_id'  => $bookId,
+                                ':genre_id' => $genreId
+                            ]);
+                        }
+                    }
 
                     // Return a success response
                     $_SESSION['error'] = 'Book recorded successfully. View it <a href="/viewDetails/' . $bookId . '">here</a>.';
@@ -1618,12 +1830,11 @@ switch ($cmd) {
                 $exists = $stmt->fetchColumn();
 
                 if (!$exists) {
-                    $insert = $pdo->prepare("INSERT INTO `book` (`author`, `title`, `genre`, `isbn`, `formatId`, `sourceId`, `read`, `priority`, `dateAdded`, `notes`, `list`, `url`)
-                                                        VALUES (:author, :title, :genre, :isbn, :formatId, :sourceId, :read, :priority, :dateAdded, :notes, :list, :url)");
+                    $insert = $pdo->prepare("INSERT INTO `book` (`author`, `title`, `isbn`, `formatId`, `sourceId`, `read`, `priority`, `dateAdded`, `notes`, `list`, `url`)
+                                                        VALUES (:author, :title, :isbn, :formatId, :sourceId, :read, :priority, :dateAdded, :notes, :list, :url)");
                     $insert->execute([
                         ':author' => $authors,
                         ':title' => $title,
-                        ':genre' => $subject,
                         ':isbn' => $isbn,
                         ':formatId' => $formatId,
                         ':sourceId' => $sourceId,
@@ -1641,6 +1852,40 @@ switch ($cmd) {
                         ':bookId' => $bookId,
                         ':sourceId' => $sourceId
                     ]);
+
+                    // Handle genre(s) for the newly created book
+                    if (!empty($subject)) {
+                        // Allow multiple genres separated by comma or pipe
+                        $rawGenres = preg_split('/[|,]/', $subject);
+                        $selectGenre = $pdo->prepare('SELECT id FROM genre WHERE name = :name');
+                        $insertGenre = $pdo->prepare('INSERT INTO genre (name) VALUES (:name)');
+                        $linkGenre   = $pdo->prepare('INSERT OR IGNORE INTO bookGenre (book_id, genre_id) VALUES (:book_id, :genre_id)');
+
+                        foreach ($rawGenres as $g) {
+                            $g = trim($g);
+                            if ($g === '') {
+                                continue;
+                            }
+
+                            // Try to find existing genre
+                            $selectGenre->execute([':name' => $g]);
+                            $genreId = $selectGenre->fetchColumn();
+
+                            // Insert if not exists
+                            if (!$genreId) {
+                                $insertGenre->execute([':name' => $g]);
+                                $genreId = (int)$pdo->lastInsertId();
+                            } else {
+                                $genreId = (int)$genreId;
+                            }
+
+                            // Link book to genre
+                            $linkGenre->execute([
+                                ':book_id'  => $bookId,
+                                ':genre_id' => $genreId
+                            ]);
+                        }
+                    }
 
                     // Return a success response
                     $_SESSION['error'] = 'Book recorded successfully. View it <a href="/viewDetails/' . $bookId . '">here</a>.';
@@ -1950,12 +2195,11 @@ switch ($cmd) {
                     $exists = $stmt->fetchColumn();
 
                     if (!$exists) {
-                        $insert = $pdo->prepare("INSERT INTO `book` (`author`, `title`, `genre`, `isbn`, `formatId`, `sourceId`, `read`, `priority`, `dateAdded`, `notes`, `list`, `url`)
-                                                        VALUES (:author, :title, :genre, :isbn, :formatId, :sourceId, :read, :priority, :dateAdded, :notes, :list, :url)");
+                        $insert = $pdo->prepare("INSERT INTO `book` (`author`, `title`, `isbn`, `formatId`, `sourceId`, `read`, `priority`, `dateAdded`, `notes`, `list`, `url`)
+                                                        VALUES (:author, :title, :isbn, :formatId, :sourceId, :read, :priority, :dateAdded, :notes, :list, :url)");
                         $insert->execute([
                             ':author' => $authors,
                             ':title' => $title,
-                            ':genre' => $subject,
                             ':isbn' => $isbn,
                             ':formatId' => $formatId,
                             ':sourceId' => $sourceId,
@@ -1966,6 +2210,40 @@ switch ($cmd) {
                             ':list' => $list,
                             ':url' => $url
                         ]);
+
+                        // Handle genre(s) for the newly created book
+                        if (!empty($subject)) {
+                            // Allow multiple genres separated by comma or pipe
+                            $rawGenres = preg_split('/[|,]/', $subject);
+                            $selectGenre = $pdo->prepare('SELECT id FROM genre WHERE name = :name');
+                            $insertGenre = $pdo->prepare('INSERT INTO genre (name) VALUES (:name)');
+                            $linkGenre   = $pdo->prepare('INSERT OR IGNORE INTO bookGenre (book_id, genre_id) VALUES (:book_id, :genre_id)');
+
+                            foreach ($rawGenres as $g) {
+                                $g = trim($g);
+                                if ($g === '') {
+                                    continue;
+                                }
+
+                                // Try to find existing genre
+                                $selectGenre->execute([':name' => $g]);
+                                $genreId = $selectGenre->fetchColumn();
+
+                                // Insert if not exists
+                                if (!$genreId) {
+                                    $insertGenre->execute([':name' => $g]);
+                                    $genreId = (int)$pdo->lastInsertId();
+                                } else {
+                                    $genreId = (int)$genreId;
+                                }
+
+                                // Link book to genre
+                                $linkGenre->execute([
+                                    ':book_id'  => $bookId,
+                                    ':genre_id' => $genreId
+                                ]);
+                            }
+                        }
 
                         $bookId = $pdo->lastInsertId();
                         $insertBookSource = $pdo->prepare("INSERT INTO `bookSource` (`book`, `source`) VALUES (:bookId, :sourceId)");
