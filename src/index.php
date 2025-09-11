@@ -705,8 +705,7 @@ switch ($cmd) {
             $sql .= " WHERE `bookList`.`list` = :defaultListId";
             $sql .= " ORDER BY book.author ASC";
         } elseif ($defaultListId == 9999) {
-            $sql .= " WHERE datetime(book.dateAdded) >= datetime('now', '-30 days')";
-            $sql .= " ORDER BY book.dateAdded DESC";
+            $sql .= " ORDER BY book.dateAdded DESC LIMIT 10";
         } else {
             $sql .= " ORDER BY book.author ASC";
         }
