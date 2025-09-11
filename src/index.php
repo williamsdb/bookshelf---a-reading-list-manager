@@ -701,13 +701,18 @@ switch ($cmd) {
                 LEFT JOIN `list` ON `book`.`list` = `list`.`id`
                 LEFT JOIN `bookList` ON `book`.`id` = `bookList`.`book`";
 
-        if ($defaultListId) {
+        if ($defaultListId > 0 && $defaultListId != 9999) {
             $sql .= " WHERE `bookList`.`list` = :defaultListId";
+            $sql .= " ORDER BY book.author ASC";
+        } elseif ($defaultListId == 9999) {
+            $sql .= " WHERE datetime(book.dateAdded) >= datetime('now', '-30 days')";
+            $sql .= " ORDER BY book.dateAdded DESC";
+        } else {
+            $sql .= " ORDER BY book.author ASC";
         }
 
-        $sql .= " ORDER BY book.author ASC";
         $stmt = $pdo->prepare($sql);
-        if ($defaultListId) {
+        if ($defaultListId > 0 && $defaultListId != 9999) {
             $stmt->bindParam(':defaultListId', $defaultListId, PDO::PARAM_INT);
         }
         $stmt->execute();

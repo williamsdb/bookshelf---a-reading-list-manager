@@ -10,10 +10,11 @@
                 </div>
                 <div class="col-auto">
                     <select id="listSelectHome" name="list_id" class="form-select">
-                            <option value="0"{if $defaultListId == 0} selected{/if}>All Books</option>
+                        <option value="0"{if $defaultListId == 0} selected{/if}>All Books</option>
                         {foreach from=$lists item=list}
                             <option value="{$list.id}"{if $list.id == $defaultListId} selected{/if}>{$list.name}</option>
                         {/foreach}
+                        <option value="9999"{if $defaultListId == 9999} selected{/if}>Recently Added</option>
                     </select>
                 </div>
                 <div class="col-auto">
