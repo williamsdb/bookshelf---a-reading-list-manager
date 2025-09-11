@@ -264,7 +264,7 @@ try {
             $sql = "ALTER TABLE `book` DROP COLUMN `genre`;
 
                     UPDATE `db` SET `version` = 1.4;";
-            $pdo->exec($sql);
+            // $pdo->exec($sql);
         }
     }
 } catch (PDOException $e) {
@@ -273,6 +273,11 @@ try {
 
 // execute command
 switch ($cmd) {
+
+    case 'db':
+
+        echo $pdo->query("SELECT sqlite_version()")->fetchColumn();
+        break;
 
     case 'addFile':
 
