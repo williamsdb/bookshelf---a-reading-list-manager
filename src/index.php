@@ -232,10 +232,15 @@ try {
             // now migrate the old genre to the new tables
             $books = $pdo->query("SELECT id, genre FROM book")->fetchAll(PDO::FETCH_ASSOC);
 
+            // prepare the insert-or-update (no RETURNING)
             $insertGenre = $pdo->prepare("
                 INSERT INTO genre (name) VALUES (:name)
                 ON CONFLICT(name) DO UPDATE SET name = excluded.name
-                RETURNING id
+            ");
+
+            // prepare the select to fetch the id afterwards
+            $getGenreId = $pdo->prepare("
+                SELECT id FROM genre WHERE name = :name
             ");
 
             $linkBook = $pdo->prepare("
@@ -249,9 +254,12 @@ try {
                     $g = trim($g);
                     if ($g === '') continue;
 
-                    // insert or fetch genre id in one go
+                    // insert genre
                     $insertGenre->execute([':name' => $g]);
-                    $genreId = $insertGenre->fetchColumn();
+
+                    // fetch the id explicitly
+                    $getGenreId->execute([':name' => $g]);
+                    $genreId = $getGenreId->fetchColumn();
 
                     // link book to genre
                     $linkBook->execute([
