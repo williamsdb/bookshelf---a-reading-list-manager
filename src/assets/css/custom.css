@@ -351,3 +351,53 @@ div.dataTables_wrapper div.dataTables_length {
     margin-top: 0.75em;
   }
 }
+
+/* ============================================
+   Bootstrap 5 dark mode fixes for Select2
+   ============================================ */
+[data-bs-theme="dark"] .select2-selection {
+  background-color: var(--bs-body-bg) !important;
+  color: var(--bs-body-color) !important;
+  border: 1px solid var(--bs-border-color) !important;
+}
+
+/* Rendered text inside the container */
+[data-bs-theme="dark"] .select2-selection__rendered {
+  color: var(--bs-body-color) !important;
+}
+
+/* Multiple select "pills" */
+[data-bs-theme="dark"] .select2-selection__choice {
+  background-color: var(--bs-tertiary-bg, #495057) !important;
+  border: none !important;
+  color: var(--bs-body-color) !important;
+}
+
+/* "x" remove icon inside pills */
+[data-bs-theme="dark"] .select2-selection__choice__remove {
+  color: var(--bs-secondary-color) !important;
+}
+
+/* Inline search field (when typing into multiple select) */
+[data-bs-theme="dark"] .select2-search--inline .select2-search__field {
+  color: var(--bs-body-color) !important;
+  background: transparent !important;
+}
+
+/* Dropdown panel */
+[data-bs-theme="dark"] .select2-dropdown {
+  background-color: var(--bs-body-bg) !important;
+  border: 1px solid var(--bs-border-color) !important;
+  color: var(--bs-body-color) !important;
+}
+
+/* Dropdown items */
+[data-bs-theme="dark"] .select2-results__option {
+  color: var(--bs-body-color) !important;
+}
+
+/* Highlighted dropdown item */
+[data-bs-theme="dark"] .select2-results__option--highlighted {
+  background-color: var(--bs-tertiary-bg, #495057) !important;
+  color: #fff !important;
+}

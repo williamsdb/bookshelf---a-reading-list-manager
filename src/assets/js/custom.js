@@ -365,7 +365,31 @@ $(document).ready(function () {
   });
 
   // Initialize star display for existing selects on page load
-  $("#ratingSelect, .ratingSelect").each(function () {
+  $("#ratingSelectNoUpdate").each(function () {
+    $(this).trigger("change");
+  });
+
+  $(document).on("change", "#ratingSelectNoUpdate", function () {
+    const $select = $(this);
+    const value = $select.val();
+    const max = parseInt($select.data("maxStars"), 10) || 5;
+
+    let $target;
+    const targetSelector = $select.data("starsTarget");
+    if (targetSelector) {
+      $target = $(targetSelector);
+    } else {
+      $target = $select.next(".js-star-output");
+      if ($target.length === 0) {
+        $target = $('<div class="js-star-output mt-1"></div>');
+        $select.after($target);
+      }
+    }
+    $target.html(renderStars(value, max));
+  });
+
+  // Initialize star display for existing selects on page load
+  $("#ratingSelectNoUpdate").each(function () {
     $(this).trigger("change");
   });
 
@@ -474,6 +498,31 @@ $(document).on("blur", "#datetimePicker", function () {
   });
 });
 
+// handle the date change
+$(document).on("change", "#dateReadPickerNoUpdate", function () {
+  const $select = $(this);
+  const name = $select.attr("name");
+  const value = $select.val();
+
+  const dateInput = document.getElementById("dateReadPickerNoUpdate");
+  const inputDate = new Date(dateInput.value);
+  const currentDate = new Date();
+
+  const errorMessage = document.getElementById("error-message");
+  errorMessage.style.display = "none";
+
+  if (dateInput.value && inputDate > currentDate) {
+    errorMessage.style.display = "block";
+    dateInput.focus();
+    dateInput.value = new Date(
+      currentDate.getTime() - currentDate.getTimezoneOffset() * 60000
+    )
+      .toISOString()
+      .split("T")[0];
+    return;
+  }
+});
+
 function changeList(selectElement) {
   const $select = $(selectElement);
   const name = $select.attr("name");
@@ -533,6 +582,29 @@ function changeStatus(selectElement) {
       console.error("Update failed:", error);
     },
   });
+}
+
+// handle the change of read status
+function changeStatusNoUpdate(selectElement) {
+  const $select = $(selectElement);
+  const name = $select.attr("name");
+  const value = $select.val();
+  const $table = $select.closest("table");
+  const idSuffix = name.split("_").pop();
+  const readDetails = document.getElementsByClassName("readDetailsAdd");
+  let statusText = "";
+  if (value === "0") {
+    statusText = "Not Read";
+    if (readDetails) $(".readDetailsAdd").hide();
+  } else if (value === "1") {
+    statusText = "Reading";
+    if (readDetails) $(".readDetailsAdd").hide();
+  } else if (value === "2") {
+    statusText = "Read";
+    if (readDetails) $(".readDetailsAdd").show();
+  } else {
+    statusText = value;
+  }
 }
 
 function updateURLFromFilters() {

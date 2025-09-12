@@ -119,7 +119,7 @@
             <tr>
                 <td width="15%"><strong>Genre</strong></td>
                 <td>
-                    <input type="text" class="form-control" id="genreInput" name="genreInput" list="genreSuggestions" autocomplete="off" required />
+                    <input type="text" class="form-control" id="genreInput" name="genreInput" list="genreSuggestions" autocomplete="off"  />
                     <datalist id="genreSuggestions"></datalist>
                     <script>
                     {literal}
@@ -189,6 +189,41 @@
                             <option value="{$list.id}">{$list.name}</option>
                         {/foreach}
                     </select>
+                </td>
+            </tr>
+            <tr>
+                <td width="15%"><strong>Read</strong></td>
+                <td>
+                    <select name="status" id="statusChange" class="form-select" onchange="changeStatusNoUpdate(this);">
+                        <option value="0" selected>Not Read</option>
+                        <option value="1">Reading</option>
+                        <option value="2">Read</option>
+                    </select>
+                </td>
+            </tr>
+            <tr class="readDetailsAdd" style="display:none;">
+                <td><strong>Date Read</strong></td>
+                <td>
+                    <input type="date" class="form-control" name="dateRead" step="1" id="dateReadPickerNoUpdate" value="{$smarty.now|date_format:'%Y-%m-%d'}">
+                    <div id="error-message" style="color: red; display: none;">The date must be in the past.</div>
+                </td>
+            </tr>
+            <tr class="readDetailsAdd" style="display:none;">
+                <td><strong>Rating</strong></td>
+                <td>
+                    <select name="rating" id="ratingSelectNoUpdate" class="form-select">
+                        <option value="0">No rating</option>
+                        {section name=star start=1 loop=11}
+                            {assign var="value" value=$smarty.section.star.index * 0.5}
+                            <option value="{$value}">{$value}</option>
+                        {/section}
+                    </select>
+                </td>
+            </tr>
+            <tr class="readDetailsAdd"  style="display:none;">
+                <td><strong>Review</strong></td>
+                <td>
+                    <textarea name="review" id="reviewText" class="form-control" rows="4"></textarea>
                 </td>
             </tr>
         </tbody>

@@ -741,6 +741,7 @@ switch ($cmd) {
             break;
         }
 
+        // get book details
         $sql = "SELECT
                     book.id, 
                     book.author, 
@@ -754,19 +755,18 @@ switch ($cmd) {
                         WHERE bg.book_id = book.id
                     ) AS genre,
                     book.isbn, 
-                    format.name AS format, 
-                    (
-                        SELECT GROUP_CONCAT(source.name, ', ')
-                        FROM bookSource
-                        JOIN source ON bookSource.source = source.id
-                        WHERE bookSource.book = book.id
-                    ) AS source,
+                    book.formatId,
                     book.read,
                     book.priority,
                     book.dateAdded,
                     book.dateRead,
                     book.notes,
-                    list.name AS list,
+                    (
+                        SELECT GROUP_CONCAT(l.id, ', ')
+                        FROM bookList bl
+                        JOIN list l ON l.id = bl.list
+                        WHERE bl.book = book.id
+                    ) AS list,
                     book.url,
                     book.rating,
                     book.review
@@ -778,6 +778,12 @@ switch ($cmd) {
         $stmt = $pdo->prepare($sql);
         $stmt->execute([':id' => $id]);
         $book = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$book) {
+            $_SESSION['error'] = 'Book not found.';
+            header('Location: /');
+            exit;
+        }
 
         // Get all lists
         $listStmt = $pdo->prepare("
@@ -798,13 +804,19 @@ switch ($cmd) {
         $listStmt->execute();
         $lists = $listStmt->fetchAll(PDO::FETCH_ASSOC);
 
-        if (!$book) {
-            $_SESSION['error'] = 'Book not found.';
-            header('Location: /');
-            exit;
-        }
+        // Get all formats
+        $formatStmt = $pdo->prepare("
+            SELECT 
+            id, 
+            name
+            FROM format
+            ORDER BY id ASC
+        ");
+        $formatStmt->execute();
+        $formats = $formatStmt->fetchAll(PDO::FETCH_ASSOC);
 
         $smarty->assign('book', $book);
+        $smarty->assign('formats', $formats);
         $smarty->assign('lists', $lists);
         $smarty->display('viewDetails.tpl');
         break;
@@ -902,7 +914,7 @@ switch ($cmd) {
         // Only accept POST
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $_SESSION['error'] = 'Invalid request.';
-            header('Location: /manualAdd');
+            header('Location: /');
             exit;
         }
 
@@ -915,7 +927,10 @@ switch ($cmd) {
         $genre  = trim($_POST['genreInput'] ?? $_POST['genre'] ?? '');
         $isbn   = trim($_POST['isbnInput'] ?? $_POST['isbn'] ?? '');
         $url    = trim($_POST['urlInput'] ?? $_POST['url'] ?? '');
-
+        $read   = trim($_POST['status'] ?? $_POST['read'] ?? '');
+        $dateRead = trim($_POST['dateRead'] ?? $_POST['dateRead'] ?? '');
+        $rating = trim($_POST['rating'] ?? $_POST['rating'] ?? '');
+        $review = trim($_POST['reviewText'] ?? $_POST['review'] ?? '');
         $formatId = isset($_POST['formatList']) && is_numeric($_POST['formatList']) ? (int)$_POST['formatList'] : (isset($_POST['format']) && is_numeric($_POST['format']) ? (int)$_POST['format'] : null);
         $sourceId = 8;
 
@@ -925,31 +940,6 @@ switch ($cmd) {
             $lists = [$lists];
         }
         $lists = array_values(array_unique(array_filter(array_map('intval', $lists))));
-
-        // Read status, date, rating, review
-        $status = isset($_POST['statusSelect']) ? (int)$_POST['statusSelect'] : (isset($_POST['status']) ? (int)$_POST['status'] : 0);
-        $rating = isset($_POST['ratingSelect']) && $_POST['ratingSelect'] !== '' ? (float)$_POST['ratingSelect'] : null;
-        $review = trim($_POST['reviewText'] ?? $_POST['review'] ?? '');
-
-        // Normalize/validate dateRead if read
-        $dateRead = null;
-        if ($status === 2) {
-            $dt = trim($_POST['datetimePicker'] ?? '');
-            if ($dt !== '') {
-                $dt = str_replace('T', ' ', $dt);
-                if (preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/', $dt)) {
-                    $dt .= ':00';
-                }
-                $ts = strtotime($dt);
-                if ($ts !== false && $ts <= time()) {
-                    $dateRead = date('Y-m-d H:i:s', $ts);
-                } else {
-                    $dateRead = date('Y-m-d H:i:s');
-                }
-            } else {
-                $dateRead = date('Y-m-d H:i:s');
-            }
-        }
 
         // Basic validation
         if ($title === '' || $author === '' || !$formatId) {
@@ -1031,7 +1021,7 @@ switch ($cmd) {
                 ':isbn'          => ($isbn !== '' ? $isbn : null),
                 ':formatId'      => $formatId,
                 ':sourceId'      => $sourceId,
-                ':read'          => $status,
+                ':read'          => $read,
                 ':priority'      => 0,
                 ':dateAdded'     => date('Y-m-d H:i:s'),
                 ':dateRead'      => $dateRead,
@@ -1105,6 +1095,169 @@ switch ($cmd) {
             }
             $_SESSION['error'] = 'There was a problem saving the book: ' . $e->getMessage();
             header('Location: /manualAdd');
+            exit;
+        }
+        break;
+
+    case 'updateBook':
+
+        // Only accept POST
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $_SESSION['error'] = 'Invalid request.';
+            header('Location: /');
+            exit;
+        }
+
+        // Collect and sanitize inputs (fallbacks included)
+        $id     = isset($_POST['bookId']) && is_numeric($_POST['bookId']) ? (int)$_POST['bookId'] : null;
+        if (!$id) {
+            $_SESSION['error'] = 'Invalid book ID.';
+            header('Location: /');
+            exit;
+        }
+        $title  = trim($_POST['titleInput'] ?? $_POST['title'] ?? '');
+        $author = trim($_POST['authorInput'] ?? $_POST['author'] ?? '');
+        $series = trim($_POST['seriesInput'] ?? $_POST['series'] ?? '');
+        $seriesPosRaw = trim($_POST['numberInput'] ?? $_POST['seriesPosition'] ?? '');
+        $seriesPosition = ($seriesPosRaw === '' ? null : (int)$seriesPosRaw);
+        $genre  = trim($_POST['genreInput'] ?? $_POST['genre'] ?? '');
+        $isbn   = trim($_POST['isbnInput'] ?? $_POST['isbn'] ?? '');
+        $url    = trim($_POST['urlInput'] ?? $_POST['url'] ?? '');
+        $read   = trim($_POST['status'] ?? $_POST['read'] ?? '');
+        $dateRead = trim($_POST['dateRead'] ?? $_POST['dateRead'] ?? '');
+        $rating = trim($_POST['rating'] ?? $_POST['rating'] ?? '');
+        $review = trim($_POST['reviewText'] ?? $_POST['review'] ?? '');
+
+        $formatId = isset($_POST['formatList']) && is_numeric($_POST['formatList']) ? (int)$_POST['formatList'] : (isset($_POST['format']) && is_numeric($_POST['format']) ? (int)$_POST['format'] : null);
+
+        // Lists (multi-select)
+        $lists = $_POST['bookList'] ?? [];
+        if (!is_array($lists) && $lists !== '') {
+            $lists = [$lists];
+        }
+        $lists = array_values(array_unique(array_filter(array_map('intval', $lists))));
+
+        // Basic validation
+        if ($title === '' || $author === '' || !$formatId) {
+            $_SESSION['error'] = 'Title, author and format are required.';
+            header('Location: /viewDetails/' . $id);
+            exit;
+        }
+
+        // Optional: rewrite Amazon .com to .co.uk if configured
+        if (!empty($rewriteAmazonLinks) && $rewriteAmazonLinks && $url !== '') {
+            $parts = parse_url($url);
+            if (!empty($parts['host']) && preg_match('/(^|\.)amazon\.com$/i', $parts['host'])) {
+                $parts['host'] = 'www.amazon.co.uk';
+                $scheme = $parts['scheme'] ?? 'https';
+                $path = $parts['path'] ?? '';
+                $query = isset($parts['query']) ? '?' . $parts['query'] : '';
+                $fragment = isset($parts['fragment']) ? '#' . $parts['fragment'] : '';
+                $url = $scheme . '://' . $parts['host'] . $path . $query . $fragment;
+            }
+        }
+
+        try {
+            $pdo->beginTransaction();
+
+
+            // Update book details
+            $upd = $pdo->prepare('
+                UPDATE book
+                SET
+                    author          = :author,
+                    title           = :title,
+                    series          = :series,
+                    seriesPosition  = :seriesPosition,
+                    isbn            = :isbn,
+                    formatId        = :formatId,
+                    read            = :read,
+                    dateRead        = :dateRead,
+                    rating          = :rating,
+                    review          = :review,
+                    url             = :url
+                WHERE id = :id
+            ');
+
+            $upd->execute([
+                ':author'         => $author,
+                ':title'          => $title,
+                ':series'         => ($series !== '' ? $series : null),
+                ':seriesPosition' => $seriesPosition,
+                ':isbn'           => ($isbn !== '' ? $isbn : null),
+                ':formatId'       => $formatId,
+                ':read'           => $read,
+                ':dateRead'       => $dateRead,
+                ':rating'         => $rating,
+                ':review'         => ($review !== '' ? $review : null),
+                ':url'            => ($url !== '' ? $url : null),
+                ':id'             => $id
+            ]);
+
+            // Handle genre(s) for the newly created book
+            if (!empty($genre)) {
+
+                // Remove existing genre links for this book
+                $delGenres = $pdo->prepare('DELETE FROM bookGenre WHERE book_id = :book_id');
+                $delGenres->execute([':book_id' => $id]);
+
+                // Allow multiple genres separated by comma or pipe
+                $rawGenres = preg_split('/[|,]/', $genre);
+                $selectGenre = $pdo->prepare('SELECT id FROM genre WHERE name = :name');
+                $insertGenre = $pdo->prepare('INSERT INTO genre (name) VALUES (:name)');
+                $linkGenre   = $pdo->prepare('INSERT OR IGNORE INTO bookGenre (book_id, genre_id) VALUES (:book_id, :genre_id)');
+
+                foreach ($rawGenres as $g) {
+                    $g = trim($g);
+                    if ($g === '') {
+                        continue;
+                    }
+
+                    // Try to find existing genre
+                    $selectGenre->execute([':name' => $g]);
+                    $genreId = $selectGenre->fetchColumn();
+
+                    // Insert if not exists
+                    if (!$genreId) {
+                        $insertGenre->execute([':name' => $g]);
+                        $genreId = (int)$pdo->lastInsertId();
+                    } else {
+                        $genreId = (int)$genreId;
+                    }
+
+                    // Link book to genre
+                    $linkGenre->execute([
+                        ':book_id'  => $id,
+                        ':genre_id' => $genreId
+                    ]);
+                }
+            }
+
+            // Add to lists
+            if (!empty($lists)) {
+                // Remove existing list links for this book
+                $delLists = $pdo->prepare('DELETE FROM bookList WHERE book = :book');
+                $delLists->execute([':book' => $id]);
+
+                $insList = $pdo->prepare('INSERT INTO bookList (book, list) VALUES (:book, :list)');
+                foreach ($lists as $lid) {
+                    if ($lid > 0) {
+                        $insList->execute([':book' => $id, ':list' => $lid]);
+                    }
+                }
+            }
+
+            $pdo->commit();
+
+            $_SESSION['error'] = 'Book updated successfully.';
+            header('Location: /viewDetails/' . $id);
+            exit;
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            $_SESSION['error'] = 'There was a problem saving the book: ' . $e->getMessage();
+            header('Location: /viewDetails/' . $id);
             exit;
         }
         break;
