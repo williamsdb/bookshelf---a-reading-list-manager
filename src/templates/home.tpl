@@ -33,6 +33,7 @@
                                 {elseif $books[all].read == 2}
                                     <button type="button" class="btn btn-primary" id="readButton" data-bookshelf="{$books[all].id}" style="--bs-btn-padding-y: .25rem; --bs-btn-padding-x: .5rem; --bs-btn-font-size: .75rem;">Mark as Unread</button>
                                 {/if}
+                                <button type="button" class="btn btn-danger" id="removeButton"  onclick="window.location.href='/removeFromList?bookId={$books[all].id}&listId={$defaultListId}'" style="--bs-btn-padding-y: .25rem; --bs-btn-padding-x: .5rem; --bs-btn-font-size: .75rem;">Remove from list</button>
                             </div>
                         </div>
                     </div>

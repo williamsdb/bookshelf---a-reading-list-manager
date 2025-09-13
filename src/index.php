@@ -1419,6 +1419,24 @@ switch ($cmd) {
         header('Location: /lists');
         exit;
 
+    case 'removeFromList':
+
+        // Expecting a GET request with 'bookId' and 'listId'
+        if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['bookId'], $_GET['listId'])) {
+            $bookId = intval($_GET['bookId']);
+            $listId = intval($_GET['listId']);
+
+            // Remove the book from the list
+            $delete = $pdo->prepare("DELETE FROM bookList WHERE book = :bookId AND list = :listId");
+            $delete->execute([':bookId' => $bookId, ':listId' => $listId]);
+
+            // Redirect back to the list view
+            $_SESSION['error'] = 'Book successfully removed from list.';
+            header('Location: /lists?id=' . $listId);
+            exit;
+        }
+        break;
+
     case 'listChange':
 
         // Expecting a POST request with 'name' (e.g., 'list_12') and 'value'
