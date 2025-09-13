@@ -1,6 +1,6 @@
 {include file="header.tpl"}
 
-<h1>Manually add a book</h1>
+<h3>Manually add a book</h3>
 <form role="form" action="/createBook" method="post">
     <table class="table table-striped">
         <tbody>

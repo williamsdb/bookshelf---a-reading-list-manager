@@ -1,11 +1,11 @@
 {include file="header.tpl"}
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-  <h1>Reading statistics</h1>
+  <h3>Reading statistics</h3>
 
   <p>You have a total of <strong>{$totalBooks}</strong> books in your collection with {$readBooks} books read.</p>
 
-  <h3>Books read by year</h3>
+  <h4>Books read by year</h4>
 
   <canvas id="byYear"></canvas>
   <script>
@@ -42,7 +42,7 @@
     });
   </script>
 
-  <h3>Top 10 authors</h3>
+  <h4>Top 10 authors</h4>
   <table class="table table-striped">
       <thead>
           <tr>
@@ -64,7 +64,7 @@
       </tbody>
   </table>
 
-  <h3>Books read by format</h3>
+  <h4>Books read by format</h4>
 
   <canvas id="byFormat"></canvas>
   <script>
