@@ -66,17 +66,24 @@
       {section name=all loop=$books}
       <tr>
           <td>
-            <a href="/viewDetails/{$books[all].id}">
-              {if $books[all].title == ""}
-                Unknown Title
-              {else}
-                {if $truncateAfterColon}
-                  {$books[all].title|regex_replace:"/[[:space:]]*:.*/":""}
-                {else}
-                    {$books[all].title}
-                {/if}
+            <div class="d-flex align-items-start">
+              {if $books[all].isbn}
+                <img src="https://covers.openlibrary.org/b/isbn/{$books[all].isbn}-S.jpg" alt="Cover" class="book-cover-small me-2 flex-shrink-0" onerror="this.onerror=null;this.src='/assets/brand/no-cover.png';" />
               {/if}
-            </a>
+              <div class="flex-grow-1 text-break">
+                <a href="/viewDetails/{$books[all].id}">
+                  {if $books[all].title == ""}
+                    Unknown Title
+                  {else}
+                    {if $truncateAfterColon}
+                      {$books[all].title|regex_replace:"/[[:space:]]*:.*/":""}
+                    {else}
+                      {$books[all].title}
+                    {/if}
+                  {/if}
+                </a>
+              </div>
+            </div>
             {if $books[all].series}
               <br /><span class="badge bg-secondary">{$books[all].series} {if $books[all].seriesPosition} (#{$books[all].seriesPosition}){/if}</span>
             {/if}
