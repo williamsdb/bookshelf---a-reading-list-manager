@@ -287,6 +287,14 @@ $(document).ready(function () {
     //    console.log("Unselected:", e.params.data);
   });
 
+  $("#sortByDate").on("change", function () {
+    const selectedId = $(this).val();
+
+    if (selectedId) {
+      window.location.href = "/?sort=" + encodeURIComponent(selectedId);
+    }
+  });
+
   $("#listSelectHome").on("change", function () {
     const selectedId = $(this).val();
 

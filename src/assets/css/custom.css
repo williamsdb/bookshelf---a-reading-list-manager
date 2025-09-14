@@ -345,13 +345,6 @@ div.dataTables_wrapper div.dataTables_length {
   margin-left: 1em; /* space between info and length */
 }
 
-@media (max-width: 768px) {
-  div.dataTables_wrapper div.dataTables_length {
-    display: block;
-    margin-top: 0.75em;
-  }
-}
-
 /* ============================================
    Bootstrap 5 dark mode fixes for Select2
    ============================================ */
@@ -400,4 +393,14 @@ div.dataTables_wrapper div.dataTables_length {
 [data-bs-theme="dark"] .select2-results__option--highlighted {
   background-color: var(--bs-tertiary-bg, #495057) !important;
   color: #fff !important;
+}
+
+/* ============================================
+   Classes for mobile view
+   ============================================ */
+@media (max-width: 768px) {
+  div.dataTables_wrapper div.dataTables_length {
+    display: block;
+    margin-top: 0.75em;
+  }
 }

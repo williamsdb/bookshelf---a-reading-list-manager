@@ -671,6 +671,13 @@ switch ($cmd) {
             $defaultListId = intval($_REQUEST['id']);
         }
 
+        // Check if the sort is set and is a valid number
+        if (!isset($_REQUEST['sort']) || !is_numeric($_REQUEST['sort'])) {
+            $sortBy = 0;
+        } else {
+            $sortBy = intval($_REQUEST['sort']);
+        }
+
         // get all books with optional filters
         $sql = "SELECT 
                     book.id, 
@@ -724,6 +731,7 @@ switch ($cmd) {
 
         $smarty->assign('defaultListId', $defaultListId);
         $smarty->assign('truncateAfterColon', $truncateAfterColon);
+        $smarty->assign('sortBy', $sortBy);
         $smarty->assign('lists', $lists);
         $smarty->assign('books', $books);
         $smarty->assign('title', $title);
