@@ -373,7 +373,8 @@ switch ($cmd) {
                         'url' => null,
                         'rating' => 13,
                         'review' => null,
-                        'dateRead' => null
+                        'dateRead' => null,
+                        'cover' => 3
                     ],
                     // Simple CSV
                     'Title' => [
@@ -494,7 +495,7 @@ switch ($cmd) {
                             } else {
                                 $read = 0;
                             }
-                        } elseif ($formatKey === 'ISBN / ASIN (Amazon ID)' || $formatKey === 'author_sort') {
+                        } elseif ($formatKey === 'ISBN / ASIN (Amazon ID)') {
                             $formatId = 2; // Kindle
                             $dateRead = isset($map['dateRead']) && isset($data[$map['dateRead']]) ? trim($data[$map['dateRead']]) : null;
                             if (isset($dateRead)) {
@@ -502,6 +503,15 @@ switch ($cmd) {
                             } else {
                                 $read = 0;
                             }
+                        } elseif ($formatKey === 'author_sort') {
+                            $formatId = 2; // Kindle
+                            $dateRead = isset($map['dateRead']) && isset($data[$map['dateRead']]) ? trim($data[$map['dateRead']]) : null;
+                            if (isset($dateRead)) {
+                                $read = 2;
+                            } else {
+                                $read = 0;
+                            }
+                            $importType = 'calibre';
                         } elseif ($formatKey === 'Key') {
                             $formatId = 3; // Audiobook
                             $dateRead = isset($map['dateRead']) && isset($data[$map['dateRead']]) ? trim($data[$map['dateRead']]) : null;
@@ -524,6 +534,7 @@ switch ($cmd) {
                         $notes = null;
                         $list = 0;
                         $url = isset($map['url']) && isset($data[$map['url']]) ? trim($data[$map['url']]) : null;
+
                         // Optionally rewrite Amazon .com links to .co.uk
                         if (!empty($rewriteAmazonLinks) && $rewriteAmazonLinks && !empty($url)) {
                             $parts = parse_url($url);
@@ -536,6 +547,7 @@ switch ($cmd) {
                                 $url = $scheme . '://' . $parts['host'] . $path . $query . $fragment;
                             }
                         }
+
                         // Check if book already exists (by author and title)
                         $stmt = $pdo->prepare("SELECT COUNT(*) FROM `book` WHERE `author` = :author AND `title` = :title AND `formatId` = :formatId");
                         $stmt->execute([':author' => $author, ':title' => $title, ':formatId' => $formatId]);
@@ -614,22 +626,33 @@ switch ($cmd) {
                             ]);
                             $sourceExists = $stmtSource->fetchColumn();
 
-                            if (!$sourceExists) {
-                                // Get the book id
-                                $stmtBookId = $pdo->prepare("SELECT id FROM `book` WHERE `author` = :author AND `title` = :title AND `formatId` = :formatId");
-                                $stmtBookId->execute([
-                                    ':author' => $author,
-                                    ':title' => $title,
-                                    ':formatId' => $formatId
-                                ]);
-                                $existingBookId = $stmtBookId->fetchColumn();
+                            // Get the book id
+                            $stmtBookId = $pdo->prepare("SELECT id FROM `book` WHERE `author` = :author AND `title` = :title AND `formatId` = :formatId");
+                            $stmtBookId->execute([
+                                ':author' => $author,
+                                ':title' => $title,
+                                ':formatId' => $formatId
+                            ]);
+                            $bookId = $stmtBookId->fetchColumn();
 
-                                if ($existingBookId) {
+                            if (!$sourceExists) {
+                                if ($bookId) {
                                     $insertBookSource = $pdo->prepare("INSERT INTO `bookSource` (`book`, `source`) VALUES (:bookId, :sourceId)");
                                     $insertBookSource->execute([
-                                        ':bookId' => $existingBookId,
+                                        ':bookId' => $bookId,
                                         ':sourceId' => $sourceId
                                     ]);
+                                }
+                            }
+                        }
+
+                        // if calibre grab any image
+                        if ($importType === 'calibre') {
+                            $coverImage = isset($map['cover']) && isset($data[$map['cover']]) ? trim($data[$map['cover']]) : null;
+                            if (isset($coverImage)) {
+                                $image = file_get_contents($coverImage);
+                                if ($image) {
+                                    file_put_contents('./cache/' . $bookId . '.jpg', $image);
                                 }
                             }
                         }
@@ -777,7 +800,8 @@ switch ($cmd) {
                     ) AS list,
                     book.url,
                     book.rating,
-                    book.review
+                    book.review,
+                    book.sourceId as source
                 FROM book 
                 LEFT JOIN format ON book.formatId = format.id
                 LEFT JOIN source ON book.sourceId = source.id
@@ -1796,10 +1820,17 @@ switch ($cmd) {
                 LEFT JOIN `format` ON `book`.`formatId` = `format`.`id`
                 LEFT JOIN `source` ON `book`.`sourceId` = `source`.`id`
                 LEFT JOIN `list` ON `book`.`list` = `list`.`id`
-                LEFT JOIN `bookList` ON `book`.`id` = `bookList`.`book`
-                WHERE `bookList`.`list` = :defaultListId";
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([':defaultListId' => $defaultListId]);
+                LEFT JOIN `bookList` ON `book`.`id` = `bookList`.`book`";
+
+        if ($defaultListId == 0) {
+            $sql .= " WHERE `book`.`read` = 1";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute();
+        } else {
+            $sql .= " WHERE `bookList`.`list` = :defaultListId";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([':defaultListId' => $defaultListId]);
+        }
         $books = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         $listStmt = $pdo->prepare("SELECT id, name, `default` FROM list ORDER BY id ASC");
@@ -2280,6 +2311,10 @@ switch ($cmd) {
 
     case 'fetchPlexAction':
 
+        // Allow up to 5 minutes for this long-running operation
+        @ini_set('max_execution_time', '300');
+        @set_time_limit(300);
+
         // get the Plex token
         $headers = [
             "X-Plex-Token: " . $plexToken,
@@ -2364,6 +2399,7 @@ switch ($cmd) {
                     if (isset($item->title)) $title = $item->title;
                     if (isset($item->parentTitle)) $authors = $item->parentTitle;
                     if (isset($item->studio)) $publisher = $item->studio;
+                    if (isset($item->thumb)) $thumb = $item->thumb;
 
                     // Gather genres
                     if (isset($item->Genre)) {
@@ -2407,6 +2443,8 @@ switch ($cmd) {
                             ':url' => $url
                         ]);
 
+                        $bookId = $pdo->lastInsertId();
+
                         // Handle genre(s) for the newly created book
                         if (!empty($subject)) {
                             // Allow multiple genres separated by comma or pipe
@@ -2441,12 +2479,31 @@ switch ($cmd) {
                             }
                         }
 
-                        $bookId = $pdo->lastInsertId();
                         $insertBookSource = $pdo->prepare("INSERT INTO `bookSource` (`book`, `source`) VALUES (:bookId, :sourceId)");
                         $insertBookSource->execute([
                             ':bookId' => $bookId,
                             ':sourceId' => $sourceId
                         ]);
+
+                        // have we got an image?
+                        if (empty($thumb)) {
+                            $thumb = 'nocoverart.jpeg';
+                        } else {
+                            // check to see if the image file is already cached
+                            if (file_exists('./cache/' . $bookId . '.jpg')) {
+                                // do nothing
+                            } else {
+                                if ($image = file_get_contents($plexEndpoint . $thumb . "?X-Plex-Token=$plexToken")) {
+                                    try {
+                                        file_put_contents('./cache/' . $bookId . '.jpg', $image);
+                                    } catch (\Throwable $th) {
+                                        //throw $th;
+                                    }
+                                } else {
+                                    $thumb = 'nocoverart.jpeg';
+                                }
+                            }
+                        }
                     } else {
                         $stmtSource = $pdo->prepare("SELECT COUNT(*) FROM `bookSource` WHERE `book` = (SELECT id FROM `book` WHERE `author` = :author AND `title` = :title AND `formatId` = :formatId) AND `source` = :sourceId");
                         $stmtSource->execute([

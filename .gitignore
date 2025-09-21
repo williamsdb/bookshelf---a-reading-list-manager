@@ -6,6 +6,7 @@
 /src/vendor
 /src/test.php
 /src/databases/*
+/src/cache/*
 /src/cache.sqlite
 /src/composer.phar
 Logos/*

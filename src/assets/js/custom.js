@@ -307,7 +307,7 @@ $(document).ready(function () {
     const selectedId = $(this).val();
 
     if (selectedId) {
-      window.location.href = "lists/?id=" + encodeURIComponent(selectedId);
+      window.location.href = "/lists/?id=" + encodeURIComponent(selectedId);
     }
   });
 
