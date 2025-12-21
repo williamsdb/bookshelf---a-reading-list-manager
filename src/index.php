@@ -1675,7 +1675,8 @@ switch ($cmd) {
         $yearStatsStmt = $pdo->prepare("
             SELECT SUBSTR(`book`.`dateRead`,1,4) AS year, COUNT(*) AS count
             FROM `book`
-            WHERE `book`.`dateRead` IS NOT NULL
+            WHERE (`book`.`dateRead` IS NOT NULL
+              AND `book`.`dateRead` <> '')
             GROUP BY year
             ORDER BY year ASC
         ");
