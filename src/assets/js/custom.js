@@ -48,6 +48,7 @@ $(document).ready(function () {
     orderCellsTop: true,
     fixedHeader: true,
     responsive: true,
+    stateSave: true,
     columnDefs: [
       { targets: [0, 1, 2, 4, 5], orderable: true, searchable: true },
       {
