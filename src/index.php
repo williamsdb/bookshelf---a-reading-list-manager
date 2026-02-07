@@ -290,7 +290,9 @@ switch ($cmd) {
     case 'api':
 
         // Check if the guid is set, is a valid string and correct
-        if (isset($_REQUEST['guid']) && ($_REQUEST['guid'] !== 'fbb47852-377d-4f85-9817-d55f468ae348')) die;
+        if (!isset($_REQUEST['guid'])) die;
+
+        if ($_REQUEST['guid'] !== 'fbb47852-377d-4f85-9817-d55f468ae348') die;
 
         $stmt = $pdo->prepare("SELECT 
                     book.author, 
