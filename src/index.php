@@ -287,6 +287,33 @@ switch ($cmd) {
         echo $pdo->query("SELECT sqlite_version()")->fetchColumn();
         break;
 
+    case 'api':
+
+        // Check if the guid is set, is a valid string and correct
+        if (isset($_REQUEST['guid']) && ($_REQUEST['guid'] !== 'fbb47852-377d-4f85-9817-d55f468ae348')) die;
+
+        $stmt = $pdo->prepare("SELECT 
+                    book.author, 
+                    book.title,
+                    format.name AS format, 
+                    book.dateRead,
+                    book.rating,
+                    book.review
+                FROM book
+                LEFT JOIN format ON book.formatId = format.id
+                LEFT JOIN source ON book.sourceId = source.id
+                LEFT JOIN `list` ON `book`.`list` = `list`.`id`
+                LEFT JOIN `bookList` ON `book`.`id` = `bookList`.`book`
+                WHERE book.read = 2
+                ORDER BY book.dateRead DESC");
+
+        $stmt->execute();
+        $books = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        header('Content-Type: application/json');
+        echo json_encode($books);
+
+        break;
+
     case 'addFile':
 
         $smarty->assign('header', 'Upload a file');
