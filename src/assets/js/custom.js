@@ -62,6 +62,11 @@ $(document).ready(function () {
           }
           return data;
         },
+        searchBuilder: true,
+        search: {
+          regex: true,
+          caseInsensitive: false,
+        },
       },
       { targets: 6, visible: false, searchable: true },
     ],
@@ -146,10 +151,17 @@ $(document).ready(function () {
   // Live text filters (Title/Author/Date/Rating)
   $("#allBooks thead tr:eq(1) th input").on("keyup change clear", function () {
     var colIdx = $(this).parent().index();
-    allBooksTable.column(colIdx).search(this.value).draw();
+    if (colIdx === 3 && this.value !== "") {
+      allBooksTable
+        .column(colIdx)
+        .search("^" + this.value + "$", true, false)
+        .draw();
+    } else {
+      allBooksTable.column(colIdx).search(this.value).draw();
+    }
   });
 
-  // Rating filter (matches beginning of numeric value)
+  // Rating filter (exact match)
   $("#rating-status").on("input", function () {
     const rating = this.value.trim();
     if (rating === "") {
@@ -157,7 +169,7 @@ $(document).ready(function () {
     } else {
       allBooksTable
         .column(3)
-        .search("^" + rating, true, false)
+        .search("^" + rating + "$", true, false)
         .draw();
     }
   });
@@ -234,7 +246,7 @@ $(document).ready(function () {
   });
 
   $(
-    "#select2-bookList-container .select2-search.select2-search--inline"
+    "#select2-bookList-container .select2-search.select2-search--inline",
   ).hide();
 
   // Hide the search field when opening or closing the select2 dropdown
@@ -318,7 +330,7 @@ $(document).ready(function () {
     const m = parseInt(max, 10) || 5;
     const r = Math.max(
       0,
-      Math.min(m, Math.round((parseFloat(rating) || 0) * 2) / 2)
+      Math.min(m, Math.round((parseFloat(rating) || 0) * 2) / 2),
     );
     const pct = (r / m) * 100;
     const stars = "★".repeat(m);
@@ -524,7 +536,7 @@ $(document).on("change", "#dateReadPickerNoUpdate", function () {
     errorMessage.style.display = "block";
     dateInput.focus();
     dateInput.value = new Date(
-      currentDate.getTime() - currentDate.getTimezoneOffset() * 60000
+      currentDate.getTime() - currentDate.getTimezoneOffset() * 60000,
     )
       .toISOString()
       .split("T")[0];
@@ -690,7 +702,7 @@ function initQuagga() {
       quaggaReady = true;
       Quagga.onDetected(onBarcodeDetected);
       startScanning();
-    }
+    },
   );
 }
 
@@ -789,7 +801,7 @@ function fetchBookDetails(isbn) {
                 </tr>
                 <tr>
                     <td><strong>Author(s)</strong></td><td><span  id="authors">${data.authors.join(
-                      ", "
+                      ", ",
                     )}</span></td>
                 </tr>
                 <tr>
@@ -863,7 +875,7 @@ function fetchBookDetails(isbn) {
         "data-bs-theme",
         window.matchMedia("(prefers-color-scheme: dark)").matches
           ? "dark"
-          : "light"
+          : "light",
       );
     } else {
       document.documentElement.setAttribute("data-bs-theme", theme);
@@ -893,7 +905,7 @@ function fetchBookDetails(isbn) {
     const showActiveTheme = (theme) => {
       const activeThemeIcon = document.querySelector(".theme-icon-active use");
       const btnToActivate = document.querySelector(
-        `[data-bs-theme-value="${theme}"]`
+        `[data-bs-theme-value="${theme}"]`,
       );
       const svgOfActiveBtn = btnToActivate
         .querySelector("svg use")
