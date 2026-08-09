@@ -100,10 +100,10 @@
           <td>
             <div class="d-flex align-items-start">
               {if $books[all].source == "Plex" ||  $books[all].source == "Calibre"}
-                  <img src="/cache/{$books[all].id}.jpg" width="40" alt="Cover" class="book-cover-small me-2 flex-shrink-0" onerror="this.onerror=null;this.src='/assets/brand/no-cover.png';" />
+                  <img data-src="/cache/{$books[all].id}.jpg" src="/assets/brand/no-cover.png" width="40" alt="Cover" class="book-cover-small book-cover-lazy me-2 flex-shrink-0" />
               {else}
                 {if $books[all].isbn}
-                  <img src="https://covers.openlibrary.org/b/isbn/{$books[all].isbn}-S.jpg" alt="Cover" class="book-cover-small me-2 flex-shrink-0" onerror="this.onerror=null;this.src='/assets/brand/no-cover.png';" />
+                  <img data-src="https://covers.openlibrary.org/b/isbn/{$books[all].isbn}-S.jpg" src="/assets/brand/no-cover.png" alt="Cover" class="book-cover-small book-cover-lazy me-2 flex-shrink-0" />
                 {/if}
               {/if}
 
