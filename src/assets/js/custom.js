@@ -90,6 +90,26 @@ $(document).ready(function () {
 
       api.draw();
 
+      // Populate visible filter inputs from the active column search state
+      // (covers the case where stateSave restores filters but inputs are empty)
+      api.columns([0, 1, 2, 3, 4, 5]).every(function (colIndex) {
+        var search = this.search();
+        if (!search) return;
+        var $input = $("#allBooks thead tr:eq(1) th")
+          .eq(colIndex)
+          .find("input");
+        if ($input.val()) return; // already set by server-side URL param
+        // Strip regex anchors added by the live filter handlers before displaying
+        $input.val(search.replace(/^\^/, "").replace(/\$$/, ""));
+      });
+
+      // Populate status dropdown from the active search state on col 6
+      var savedStatus = api.column(6).search();
+      if (savedStatus && !$("#filter-status").val()) {
+        var m = savedStatus.match(/\(\^(.+)\$\)/);
+        if (m) $("#filter-status").val(m[1]);
+      }
+
       // ---- Helpers ----
       function computeResponsiveVisibility(dt) {
         // Build an array like responsive-resize gives us: [true/false per column]
