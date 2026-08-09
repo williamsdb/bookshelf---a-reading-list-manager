@@ -1,37 +1,80 @@
 {include file="header.tpl"}
 
-<h3>All Books</h3>
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <h3 class="mb-0">All Books</h3>
+  <button class="btn btn-outline-secondary position-relative" type="button" data-bs-toggle="offcanvas" data-bs-target="#filterOffcanvas" aria-controls="filterOffcanvas">
+    <i class="bi bi-funnel-fill"></i> Filters
+    <span id="filter-badge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-primary d-none">0</span>
+  </button>
+</div>
 
-<div class="row g-3 align-items-center">
-  <!-- List filter -->
-  <div class="col-12 col-md-auto d-flex flex-column flex-md-row align-items-md-center">
-    <label for="listSelectHome" class="form-label flex-md-shrink-0 mb-1 mb-md-0 me-md-2">Filter by list:</label>
-    <select id="listSelectHome" name="list_id" class="form-select flex-fill">
-      <option value="0"{if $defaultListId == 0} selected{/if}>All Books</option>
-      {foreach from=$lists item=list}
-        <option value="{$list.id}"{if $list.id == $defaultListId} selected{/if}>{$list.name}</option>
-      {/foreach}
-    </select>
+<!-- Filter offcanvas -->
+<div class="offcanvas offcanvas-start" tabindex="-1" id="filterOffcanvas" aria-labelledby="filterOffcanvasLabel">
+  <div class="offcanvas-header">
+    <h5 class="offcanvas-title" id="filterOffcanvasLabel"><i class="bi bi-funnel-fill"></i> Filters</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
   </div>
-
-  <!-- Status filter -->
-  <div class="col-12 col-md-auto d-flex flex-column flex-md-row align-items-md-center">
-    <label for="filter-status" class="form-label flex-md-shrink-0 mb-1 mb-md-0 me-md-2">Filter by Status:</label>
-    <select id="filter-status" class="form-select flex-fill">
-      <option value="">All</option>
-      <option value="Read">Read</option>
-      <option value="Not Read">Not Read</option>
-      <option value="Reading">Reading</option>
-    </select>
-  </div>
-
-  <!-- Sort filter -->
-  <div class="col-12 col-md-auto d-flex flex-column flex-md-row align-items-md-center">
-    <label for="sortByDate" class="form-label flex-md-shrink-0 mb-1 mb-md-0 me-md-2">Date:</label>
-    <select id="sortByDate" class="form-select flex-fill">
-      <option value="0"{if $sortBy == 0} selected{/if}>Date Read</option>
-      <option value="1"{if $sortBy == 1} selected{/if}>Date Added</option>
-    </select>
+  <div class="offcanvas-body d-flex flex-column">
+    <div class="flex-grow-1">
+      <div class="mb-3">
+        <label for="listSelectHome" class="form-label fw-semibold">List</label>
+        <select id="listSelectHome" name="list_id" class="form-select">
+          <option value="0"{if $defaultListId == 0} selected{/if}>All Books</option>
+          {foreach from=$lists item=list}
+            <option value="{$list.id}"{if $list.id == $defaultListId} selected{/if}>{$list.name}</option>
+          {/foreach}
+        </select>
+      </div>
+      <div class="mb-3">
+        <label for="filter-status" class="form-label fw-semibold">Status</label>
+        <select id="filter-status" class="form-select">
+          <option value="">All</option>
+          <option value="Read">Read</option>
+          <option value="Not Read">Not Read</option>
+          <option value="Reading">Reading</option>
+        </select>
+      </div>
+      <div class="mb-3">
+        <label for="sortByDate" class="form-label fw-semibold">Date column</label>
+        <select id="sortByDate" class="form-select">
+          <option value="0"{if $sortBy == 0} selected{/if}>Date Read</option>
+          <option value="1"{if $sortBy == 1} selected{/if}>Date Added</option>
+        </select>
+      </div>
+      <hr>
+      <div class="mb-3">
+        <label for="fc-title" class="form-label fw-semibold">Title</label>
+        <input type="text" id="fc-title" class="form-control" placeholder="Search title" value="{$title|escape}">
+      </div>
+      <div class="mb-3">
+        <label for="fc-author" class="form-label fw-semibold">Author</label>
+        <input type="text" id="fc-author" class="form-control" placeholder="Search author" value="{$author|escape}">
+      </div>
+      <div class="mb-3">
+        <label for="fc-date" class="form-label fw-semibold">{if $sortBy == 0}Date Read{else}Date Added{/if}</label>
+        <input type="text" id="fc-date" class="form-control" placeholder="e.g. 2024" value="{$dateRead|escape}">
+      </div>
+      <div class="mb-3">
+        <label for="fc-rating" class="form-label fw-semibold">Rating</label>
+        <input type="text" id="fc-rating" class="form-control" placeholder="e.g. 4" value="{$rating|escape}">
+      </div>
+      <div class="mb-3">
+        <label for="fc-format" class="form-label fw-semibold">Format</label>
+        <input type="text" id="fc-format" class="form-control" placeholder="Search format" value="{$format|escape}">
+      </div>
+      <div class="mb-3">
+        <label for="fc-source" class="form-label fw-semibold">Source</label>
+        <input type="text" id="fc-source" class="form-control" placeholder="Search source" value="{$source|escape}">
+      </div>
+    </div>
+    <div class="border-top pt-3 mt-3 d-flex gap-2">
+      <button class="btn btn-primary flex-grow-1" data-bs-dismiss="offcanvas">
+        <i class="bi bi-check-lg"></i> Apply Filters
+      </button>
+      <button id="clear-filters" class="btn btn-outline-danger flex-grow-1">
+        <i class="bi bi-x-circle"></i> Clear All
+      </button>
+    </div>
   </div>
 </div>
 
@@ -49,17 +92,6 @@
       <th class="desktop tablet">Format</th>
       <th class="desktop tablet">Source</th>
       <th class="desktop tablet">Status Sort</th>
-    </tr>
-    <tr>
-      <th><input type="text" placeholder="Search Title" class="form-control" value="{$title|escape}" /></th>
-      <th><input type="text" placeholder="Search Author" class="form-control" value="{$author|escape}" /></th>
-      <th><input type="text" placeholder="Search {if $sortBy == 0}Date Read{else}Date Added{/if}" class="form-control" value="{$dateRead|escape}" /></th>
-      <th><input type="text" placeholder="Search Rating" id="rating-status" class="form-control" value="{$rating|escape}" /></th>
-      <th><input type="text" placeholder="Search Format" id="format-status" class="form-control" value="{$format|escape}" /></th>
-      <th><input type="text" placeholder="Search Source" id="source-status" class="form-control" value="{$source|escape}" /></th>
-      <th>
-          &nbsp;
-      </th>
     </tr>
   </thead>
   <tbody>
@@ -87,6 +119,7 @@
                     {/if}
                   {/if}
                 </a>
+                <div class="d-md-none small text-muted mt-1">{$books[all].author}</div>
               </div>
             </div>
             {if $books[all].series}
