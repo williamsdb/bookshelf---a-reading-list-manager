@@ -820,7 +820,18 @@ function recordDetails(call) {
 function fetchBookDetails(isbn) {
   console.log("Fetching book details for ISBN:", isbn);
   fetch(`/fetch-book?isbn=${isbn}`)
-    .then((response) => response.json())
+    .then(async (response) => {
+      const text = await response.text(); // Get raw text first
+      console.log("Raw Server Response:", text); // Check your console!
+
+      try {
+        return JSON.parse(text); // Try parsing manually
+      } catch (e) {
+        throw new Error(
+          `Server returned invalid JSON. Response was: ${text.substring(0, 100)}...`,
+        );
+      }
+    })
     .then((data) => {
       console.log("Returned data:", data);
       if (data.error) {
