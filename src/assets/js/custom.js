@@ -822,6 +822,7 @@ function fetchBookDetails(isbn) {
   fetch(`/fetch-book?isbn=${isbn}`)
     .then((response) => response.json())
     .then((data) => {
+      console.log("Returned data:", data);
       if (data.error) {
         resultDiv.innerHTML = `Error: ${data.error} - ${isbn}`;
       } else {
