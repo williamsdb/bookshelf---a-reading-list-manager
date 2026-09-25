@@ -1949,6 +1949,20 @@ switch ($cmd) {
                 : $bookData['subjects'][0];
         }
 
+        // 5. Build and output response matching your JS structure
+        echo json_encode([
+            'title'        => $bookData['title'] ?? 'Unknown Title',
+            'authors'      => $authors,
+            'publisher'    => $publisher,
+            'publish_date' => $bookData['publish_date'] ?? 'Unknown',
+            'url'          => "https://openlibrary.org/isbn/{$isbn}",
+            'subject'      => $subject,
+            'isbn'         => $isbn,
+            'cover'        => isset($bookData['covers'][0])
+                ? "https://covers.openlibrary.org/b/id/{$bookData['covers'][0]}-L.jpg"
+                : null,
+        ]);
+
         break;
 
     case 'recordCsv':
