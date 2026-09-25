@@ -1881,49 +1881,74 @@ switch ($cmd) {
 
     case 'fetch-book':
 
-        if (!isset($_REQUEST['isbn']) || empty($_REQUEST['isbn'])) {
-            $smarty->assign('error', 'No ISBN provided');
-            $smarty->display('home.tpl');
-            break;
-        }
+        $isbn = preg_replace('/[^0-9X]/i', '', trim($_REQUEST['isbn'] ?? ''));
 
-        $isbn = trim($_REQUEST['isbn']);
-        $url = "https://openlibrary.org/api/books?bibkeys=ISBN:$isbn&format=json&jscmd=data";
-
-        $response = file_get_contents($url);
-        if ($response === FALSE) {
-            echo json_encode(['error' => 'Unable to fetch data from Open Library API']);
+        if (empty($isbn)) {
+            echo json_encode(['error' => 'No ISBN provided']);
             exit;
         }
 
-        $data = json_decode($response, true);
-        if (isset($data["ISBN:$isbn"])) {
-            $bookData = $data["ISBN:$isbn"];
-            echo json_encode([
-                'title' => $bookData['title'],
-                'authors' => array_map(function ($author) {
-                    return $author['name'];
-                }, $bookData['authors']),
-                'publisher' => (
-                    isset($bookData['publishers']) &&
-                    is_array($bookData['publishers']) &&
-                    isset($bookData['publishers'][0]['name']) &&
-                    $bookData['publishers'][0]['name'] !== ''
-                ) ? $bookData['publishers'][0]['name'] : 'Unknown',
-                'publish_date' => $bookData['publish_date'],
-                'url' => $bookData['url'],
-                'subject' => (
-                    isset($bookData['subjects']) &&
-                    is_array($bookData['subjects']) &&
-                    isset($bookData['subjects'][0]['name'])
-                ) ? $bookData['subjects'][0]['name'] : 'Unknown',
-                'isbn' => $isbn,
-                'cover' => $bookData['cover']['large'] ?? null,
-            ]);
-            die;
-        } else {
-            echo json_encode(['error' => 'No book found with the provided ISBN']);
+        // 1. Fetch book data from Open Library's modern ISBN API
+        $url = "https://openlibrary.org/isbn/{$isbn}.json";
+
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_USERAGENT, 'BookshelfApp/1.0');
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        unset($ch);
+
+        // 2. Check for missing books (404) or failed connection
+        if ($httpCode === 404 || !$response) {
+            echo json_encode(['error' => "No book found with ISBN: {$isbn}"]);
+            exit;
         }
+
+        $bookData = json_decode($response, true);
+
+        if (!$bookData || isset($bookData['error'])) {
+            echo json_encode(['error' => 'Invalid response from Open Library API']);
+            exit;
+        }
+
+        // 3. Resolve Author Names (Modern API returns author keys like '/authors/OL123A')
+        $authors = [];
+        if (!empty($bookData['authors']) && is_array($bookData['authors'])) {
+            foreach ($bookData['authors'] as $authorRef) {
+                if (isset($authorRef['key'])) {
+                    $authorUrl = "https://openlibrary.org" . $authorRef['key'] . ".json";
+                    $authorJson = @file_get_contents($authorUrl);
+                    if ($authorJson !== FALSE) {
+                        $authorData = json_decode($authorJson, true);
+                        if (isset($authorData['name'])) {
+                            $authors[] = $authorData['name'];
+                        }
+                    }
+                }
+            }
+        }
+        if (empty($authors)) {
+            $authors = ['Unknown Author'];
+        }
+
+        // 4. Extract Publisher & Subject safely
+        $publisher = 'Unknown';
+        if (!empty($bookData['publishers'])) {
+            $publisher = is_array($bookData['publishers'][0])
+                ? ($bookData['publishers'][0]['name'] ?? 'Unknown')
+                : $bookData['publishers'][0];
+        }
+
+        $subject = 'Unknown';
+        if (!empty($bookData['subjects'])) {
+            $subject = is_array($bookData['subjects'][0])
+                ? ($bookData['subjects'][0]['name'] ?? 'Unknown')
+                : $bookData['subjects'][0];
+        }
+
         break;
 
     case 'recordCsv':
