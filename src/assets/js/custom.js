@@ -50,7 +50,7 @@ $(document).ready(function () {
     responsive: { details: { type: "inline", target: 0 } },
     stateSave: true,
     columnDefs: [
-      { targets: [0, 1, 2, 4, 5], orderable: true, searchable: true },
+      { targets: [0, 1, 2, 4], orderable: true, searchable: true },
       {
         targets: 3,
         render: function (data, type) {
@@ -68,7 +68,7 @@ $(document).ready(function () {
           caseInsensitive: false,
         },
       },
-      { targets: 6, visible: false, searchable: true },
+      { targets: [5, 6], visible: false, searchable: true },
     ],
     order: [[0, "asc"]],
     initComplete: function () {
