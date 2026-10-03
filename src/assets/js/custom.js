@@ -68,7 +68,8 @@ $(document).ready(function () {
           caseInsensitive: false,
         },
       },
-      { targets: [5, 6], visible: false, searchable: true },
+      { targets: 5, visible: false, searchable: true, className: "never" },
+      { targets: 6, visible: false, searchable: true },
     ],
     order: [[0, "asc"]],
     initComplete: function () {
