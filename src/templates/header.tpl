@@ -105,19 +105,11 @@
 			</a>
 
 			<ul class="nav nav-pills">
-				<li class="nav-item"><a href="/" class="nav-link">Home</a></li>
 			<!--
+				<li class="nav-item"><a href="/" class="nav-link">Home</a></li>
 				<li class="nav-item"><a href="/allBooks" class="nav-link">All Books</a></li>
 			-->
-				<li class="nav-item dropdown">
-					<a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-						Lists
-					</a>
-					<ul class="dropdown-menu" aria-labelledby="navbarDropdown">
-						<li><a class="dropdown-item" href="/lists">Books</a></li>
-						<li><a class="dropdown-item" href="/manageLists">Manage</a></li>
-					</ul>
-				</li>
+				<li class="nav-item"><a href="/lists" class="nav-link">Lists</a></li>
 				<li class="nav-item"><a href="/stats" class="nav-link">Stats</a></li>
 				<li class="nav-item dropdown">
 					<a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -133,6 +125,14 @@
 							<li><a class="dropdown-item" href="/fetchPlex">Import from Plex</a></li>
 						{/if}
 						<li><a class="dropdown-item" href="/manualAdd">Manually add</a></li>
+					</ul>
+				</li>
+				<li class="nav-item dropdown">
+					<a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+						Admin
+					</a>
+					<ul class="dropdown-menu" aria-labelledby="navbarDropdown">
+						<li><a class="dropdown-item" href="/manageLists">Manage Lists</a></li>
 					</ul>
 				</li>
 			</ul>
