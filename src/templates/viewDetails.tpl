@@ -234,8 +234,22 @@
         </tbody>
     </table>
     <p><small>Author, Title and Format are all mandatory</small></p>
-    <input type="hidden" name="bookId" value="{$book.id}" />
-    <button type="submit" class="btn btn-primary" id="bookAdd" name="bookAdd">Save</button>
+<input type="hidden" name="bookId" value="{$book.id}" />
+
+<div class="d-flex justify-content-between align-items-center">
+    <button
+        type="button"
+        class="btn btn-danger"
+        id="bookDelete"
+        onclick="confirmRedirect('/deleteBook?id={$book.id|escape:'url'}'); return false;"
+    >
+        Delete
+    </button>
+
+    <button type="submit" class="btn btn-primary" id="bookAdd" name="bookAdd">
+        Save
+    </button>
+</div>
 </form>
 <script>
   // run once after page load
