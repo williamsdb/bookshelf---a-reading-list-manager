@@ -284,8 +284,8 @@ try {
             // DROP COLUM isn't supported on the version of SQLite on the server (3.34.1) so we'll deal with this later
             //$sql = "ALTER TABLE `book` DROP COLUMN `genre`;
 
-            //        UPDATE `db` SET `version` = 1.4;";
-            //$pdo->exec($sql);
+            $sql = "UPDATE `db` SET `version` = 1.4;";
+            $pdo->exec($sql);
         } elseif ($dbVersion == 1.4) {
             $sql = "CREATE TABLE review (
                     `id` INTEGER PRIMARY KEY AUTOINCREMENT,
