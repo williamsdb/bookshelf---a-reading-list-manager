@@ -281,10 +281,11 @@ try {
                 }
             }
         } elseif ($dbVersion == 1.3) {
-            $sql = "ALTER TABLE `book` DROP COLUMN `genre`;
+            // DROP COLUM isn't supported on the version of SQLite on the server (3.34.1) so we'll deal with this later
+            //$sql = "ALTER TABLE `book` DROP COLUMN `genre`;
 
-                    UPDATE `db` SET `version` = 1.4;";
-            $pdo->exec($sql);
+            //        UPDATE `db` SET `version` = 1.4;";
+            //$pdo->exec($sql);
         } elseif ($dbVersion == 1.4) {
             $sql = "CREATE TABLE review (
                     `id` INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -318,11 +319,73 @@ try {
 
             $pdo->exec($sql);
         } elseif ($dbVersion == 1.5) {
-            $sql = "ALTER TABLE `book` DROP COLUMN `dateRead`;
-                    ALTER TABLE `book` DROP COLUMN `rating`;
-                    ALTER TABLE `book` DROP COLUMN `review`;
-                    UPDATE `db` SET `version` = 1.6;";
-            $pdo->exec($sql);
+            $pdo->beginTransaction();
+
+            try {
+                $pdo->exec("
+                    CREATE TABLE book_new (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        author TEXT NOT NULL,
+                        title TEXT NOT NULL,
+                        series TEXT NULL,
+                        seriesPosition INTEGER NULL,
+                        isbn TEXT NULL,
+                        formatId TEXT NULL,
+                        sourceId TEXT NULL,
+                        read INTEGER NULL,
+                        priority INTEGER NULL,
+                        dateAdded TEXT NULL,
+                        notes TEXT NULL,
+                        list INTEGER NULL,
+                        url TEXT NULL
+                    )
+                ");
+
+                $pdo->exec("
+                    INSERT INTO book_new (
+                        id,
+                        author,
+                        title,
+                        series,
+                        seriesPosition,
+                        isbn,
+                        formatId,
+                        sourceId,
+                        read,
+                        priority,
+                        dateAdded,
+                        notes,
+                        list,
+                        url
+                    )
+                    SELECT
+                        id,
+                        author,
+                        title,
+                        series,
+                        seriesPosition,
+                        isbn,
+                        formatId,
+                        sourceId,
+                        read,
+                        priority,
+                        dateAdded,
+                        notes,
+                        list,
+                        url
+                    FROM book
+                ");
+
+                $pdo->exec("DROP TABLE book");
+                $pdo->exec("ALTER TABLE book_new RENAME TO book");
+
+                $pdo->exec("UPDATE db SET version = 1.6");
+
+                $pdo->commit();
+            } catch (PDOException $e) {
+                $pdo->rollBack();
+                throw $e;
+            }
         }
     }
 } catch (PDOException $e) {
