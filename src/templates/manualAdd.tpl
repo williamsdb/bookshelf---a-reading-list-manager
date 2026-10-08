@@ -191,8 +191,9 @@
                     </select>
                 </td>
             </tr>
+            <!--
             <tr>
-                <td width="15%"><strong>Read</strong></td>
+                <td width="15%"><strong>Status</strong></td>
                 <td>
                     <select name="status" id="statusChange" class="form-select" onchange="changeStatusNoUpdate(this);">
                         <option value="0" selected>Not Read</option>
@@ -226,6 +227,7 @@
                     <textarea name="review" id="reviewText" class="form-control" rows="4"></textarea>
                 </td>
             </tr>
+            -->
         </tbody>
     </table>
     <p><small>Author, Title and Format are all mandatory</small></p>

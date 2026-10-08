@@ -1,6 +1,44 @@
 {include file="header.tpl"}
 
+<!-- Add a review Modal -->
+<div class="modal fade" id="triggerModal" tabindex="-1" aria-labelledby="triggerModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="triggerModalLabel">Add a Review</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+		<form role="form" action="/addReview" method="post" id="reviewForm">
+			<div class="mb-3">
+				<label for="datetimePicker" class="form-label">Date Read</label>
+				<input type="date" class="form-control" name="date" id="datetimePicker" required>
+				<div id="error-message" style="color: red; display: none;">The date must be in the past.</div>
+				<label for="ratingSelectNoUpdate" class="form-label" style="margin-top: 10px;">Rating (optional)</label>
+                <select name="rating" id="ratingSelectNoUpdate" class="form-select">
+                        <option value="0">No rating</option>
+                        {section name=star start=1 loop=11}
+                            {assign var="value" value=$smarty.section.star.index * 0.5}
+                            <option value="{$value}">{$value}</option>
+                        {/section}
+                </select>
+				<label for="triggerComment" class="form-label" style="margin-top: 10px;">Review (optional)</label>
+				<textarea class="form-control" name="comment" id="triggerComment" maxlength="1000" rows="4" style="height: 100px; resize: vertical;"></textarea>
+				<input type="hidden" class="form-control" name="bookId" id="bookId" value="{$book.id}">
+				<input type="hidden" class="form-control" name="redirectTo" id="redirectTo" value="viewDetails">
+			</div>
+		</form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary" id="reviewButton">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <h1>View & edit book details</h1>
+
 <form role="form" action="/updateBook" method="post">
     <table class="table table-striped">
         <tbody>
@@ -197,7 +235,7 @@
                 </td>
             </tr>
             <tr>
-                <td width="15%"><strong>Read</strong></td>
+                <td width="15%"><strong>Status</strong></td>
                 <td>
                     <select name="status" id="statusChange" class="form-select" onchange="changeStatusNoUpdate(this);">
                         <option value="0" {if $book.read == 0}selected{/if}>Not Read</option>
@@ -206,6 +244,7 @@
                     </select>
                 </td>
             </tr>
+            <!--
             <tr class="readDetailsAdd" style="display:none;">
                 <td><strong>Date Read</strong></td>
                 <td>
@@ -231,9 +270,11 @@
                     <textarea name="review" id="reviewText" class="form-control" rows="4">{if $book.review}{$book.review|escape:"html"}{/if}</textarea>
                 </td>
             </tr>
+            -->
         </tbody>
     </table>
     <p><small>Author, Title and Format are all mandatory</small></p>
+
 <input type="hidden" name="bookId" value="{$book.id}" />
 
 <div class="d-flex justify-content-between align-items-center">
@@ -251,10 +292,31 @@
     </button>
 </div>
 </form>
+    <p>&nbsp;</p>
+    <h3>My reviews</h3>
+    <table class="table table-striped">
+        <tbody>
+        {foreach from=$reviews item=review}
+            <tr>
+                <td>
+                    {$review.dateRead|date_format:"%Y-%m-%d"} &nbsp; <span class="review-rating-stars" data-rating="{$review.rating|escape:'html'}"></span><br/>
+                    {$review.review|escape:"html"}
+                </td>
+            </tr>
+        {/foreach}
+        </tbody>
+    </table>
+    <button type="button" class="btn btn-primary" data-wdil="{$book.id}" data-bs-toggle="modal" data-bs-target="#triggerModal">Add a Review</button>
+
+
 <script>
-  // run once after page load
-  window.addEventListener("DOMContentLoaded", function () {
-    changeStatusNoUpdate(document.getElementById("statusChange"));
+  window.addEventListener('load', function () {
+    if (typeof window.renderStars !== 'function') return;
+
+    document.querySelectorAll('.review-rating-stars').forEach(function (el) {
+      var rating = parseFloat(el.getAttribute('data-rating')) || 0;
+      el.innerHTML = window.renderStars(rating, 5);
+    });
   });
 </script>
 {include file="footer.tpl"}

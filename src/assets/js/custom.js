@@ -40,6 +40,26 @@ if (document.getElementById("myDropzone")) {
     });
 }
 
+// Global star renderer (supports 0.5 steps with visual half-stars)
+function renderStars(rating, maxStars) {
+  var m = parseInt(maxStars, 10) || 5;
+  var r = Math.max(
+    0,
+    Math.min(m, Math.round((parseFloat(rating) || 0) * 2) / 2),
+  );
+  var pct = (r / m) * 100;
+  var stars = "★".repeat(m);
+
+  return `
+    <span style="position:relative;display:inline-block;line-height:1;font-size:1.2rem;">
+      <span aria-hidden="true" style="color:#ccc;">${stars}</span>
+      <span aria-hidden="true" style="color:#f5c518;position:absolute;left:0;top:0;width:${pct}%;overflow:hidden;white-space:nowrap;">${stars}</span>
+      <span class="visually-hidden">Rating ${r} out of ${m}</span>
+    </span>
+  `;
+}
+window.renderStars = renderStars;
+
 $(document).ready(function () {
   var allBooksTable = $("#allBooks").DataTable({
     dom: '<"top">rt<"bottom"ilp><"clear">',
@@ -149,6 +169,40 @@ $(document).ready(function () {
         });
     },
   });
+
+  // action on submitting the review dialog
+  if (document.getElementById("reviewButton")) {
+    document
+      .getElementById("reviewButton")
+      .addEventListener("click", function (event) {
+        const dateInput = document.getElementById("datetimePicker");
+        const dateValue = dateInput ? dateInput.value : "";
+        const inputDate = dateValue ? new Date(dateValue) : null;
+        const currentDate = new Date();
+
+        // Clear any previous error message
+        const errorMessage = document.getElementById("error-message");
+        errorMessage.style.display = "none";
+
+        // Require a valid date value
+        if (!dateValue || !inputDate || Number.isNaN(inputDate.getTime())) {
+          errorMessage.style.display = "block";
+          event.preventDefault();
+          return;
+        }
+
+        // Check if the input date is in the future
+        if (inputDate >= currentDate) {
+          // Show error message and prevent form submission
+          errorMessage.style.display = "block";
+          event.preventDefault();
+          return;
+        }
+
+        // Trigger the form submission
+        document.getElementById("reviewForm").submit();
+      });
+  }
 
   function updateFilterBadge() {
     var count = 0;
@@ -359,32 +413,6 @@ $(document).ready(function () {
       window.location.href = "/lists/?id=" + encodeURIComponent(selectedId);
     }
   });
-
-  // Update star rating when the rating select changes
-  // Override renderer to support 0.5 increments (0.5 to max)
-  renderStars = function (rating, max) {
-    const m = parseInt(max, 10) || 5;
-    const r = Math.max(
-      0,
-      Math.min(m, Math.round((parseFloat(rating) || 0) * 2) / 2),
-    );
-    const pct = (r / m) * 100;
-    const stars = "★".repeat(m);
-    return `
-      <span style="position:relative;display:inline-block;line-height:1;font-size:1.2rem;">
-        <span aria-hidden="true" style="color:#ccc;">${stars}</span>
-        <span aria-hidden="true" style="color:#f5c518;position:absolute;left:0;top:0;width:${pct}%;overflow:hidden;white-space:nowrap;">${stars}</span>
-        <span class="visually-hidden">Rating ${r} out of ${m}</span>
-      </span>
-    `;
-  };
-
-  function renderStars(rating, max) {
-    const r = Math.max(0, Math.min(max, parseInt(rating, 10) || 0));
-    const filled = "★".repeat(r);
-    const empty = "☆".repeat(max - r);
-    return `<span aria-hidden="true" style="font-size:1.2rem;color:#f5c518;">${filled}</span><span aria-hidden="true" style="font-size:1.2rem;color:#ccc;">${empty}</span><span class="visually-hidden">Rating ${r} out of ${max}</span>`;
-  }
 
   $(document).on("change", "#ratingSelect, .ratingSelect", function () {
     const $select = $(this);

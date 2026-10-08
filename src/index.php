@@ -116,9 +116,6 @@ try {
                         `read` INTEGER NULL,
                         `priority` INTEGER NULL,
                         `dateAdded` TEXT NULL,
-                        `dateRead` TEXT NULL,
-                        `rating` FLOAT NULL,
-                        `review` TEXT NULL,
                         `notes` TEXT NULL,
                         `list` INTEGER NULL,
                         `url` TEXT NULL
@@ -181,8 +178,23 @@ try {
                     FOREIGN KEY (genre_id) REFERENCES genre(id) ON DELETE CASCADE
                 );
 
+                CREATE TABLE review (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT,
+                    `dateRead` TEXT NULL,
+                    `rating` FLOAT NULL,
+                    `review` TEXT NULL
+                );
+
+                CREATE TABLE bookReview (
+                    `book_id` INT NOT NULL,
+                    `review_id` INT NOT NULL,
+                    PRIMARY KEY (`book_id`, `review_id`),
+                    FOREIGN KEY (`book_id`) REFERENCES `book`(`id`) ON DELETE CASCADE,
+                    FOREIGN KEY (`review_id`) REFERENCES `review`(`id`) ON DELETE CASCADE
+                );
+
                 INSERT INTO `db` (`version`)
-                VALUES (1.4); 
+                VALUES (1.5); 
         ";
 
         $pdo->exec($sql);
@@ -272,7 +284,45 @@ try {
             $sql = "ALTER TABLE `book` DROP COLUMN `genre`;
 
                     UPDATE `db` SET `version` = 1.4;";
-            // $pdo->exec($sql);
+            $pdo->exec($sql);
+        } elseif ($dbVersion == 1.4) {
+            $sql = "CREATE TABLE review (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT,
+                    `dateRead` TEXT NULL,
+                    `rating` FLOAT NULL,
+                    `review` TEXT NULL
+                );
+
+                CREATE TABLE bookReview (
+                    `book_id` INT NOT NULL,
+                    `review_id` INT NOT NULL,
+                    PRIMARY KEY (`book_id`, `review_id`),
+                    FOREIGN KEY (`book_id`) REFERENCES `book`(`id`) ON DELETE CASCADE,
+                    FOREIGN KEY (`review_id`) REFERENCES `review`(`id`) ON DELETE CASCADE
+                );
+
+                -- Populate the `review` table using data from the `book` table
+                -- (We filter out books that don't have a date read, rating, or review text)
+                INSERT INTO review (id, dateRead, rating, review)
+                SELECT id, dateRead, rating, review
+                FROM book
+                WHERE dateRead IS NOT NULL OR rating IS NOT NULL OR review IS NOT NULL;
+
+                -- Populate the `bookReview` junction table linking them together
+                INSERT INTO bookReview (book_id, review_id)
+                SELECT id, id
+                FROM book
+                WHERE dateRead IS NOT NULL OR rating IS NOT NULL OR review IS NOT NULL;
+                    
+                UPDATE `db` SET `version` = 1.5;";
+
+            $pdo->exec($sql);
+        } elseif ($dbVersion == 1.5) {
+            $sql = "ALTER TABLE `book` DROP COLUMN `dateRead`;
+                    ALTER TABLE `book` DROP COLUMN `rating`;
+                    ALTER TABLE `book` DROP COLUMN `review`;
+                    UPDATE `db` SET `version` = 1.6;";
+            $pdo->exec($sql);
         }
     }
 } catch (PDOException $e) {
@@ -295,19 +345,20 @@ switch ($cmd) {
         if ($_REQUEST['guid'] !== 'fbb47852-377d-4f85-9817-d55f468ae348') die;
 
         $stmt = $pdo->prepare("SELECT 
-                    book.author, 
-                    book.title,
-                    format.name AS format, 
-                    book.dateRead,
-                    book.rating,
-                    book.review
+                    book.`author`, 
+                    book.`title`,
+                    format.`name` AS `format`,
+                    `review`.`dateRead`,
+                    `review`.`rating`,
+                    `review`.`review`
                 FROM book
                 LEFT JOIN format ON book.formatId = format.id
                 LEFT JOIN source ON book.sourceId = source.id
                 LEFT JOIN `list` ON `book`.`list` = `list`.`id`
                 LEFT JOIN `bookList` ON `book`.`id` = `bookList`.`book`
-                WHERE book.read = 2
-                ORDER BY book.dateRead DESC");
+                LEFT JOIN `bookReview` ON `book`.`id` = `bookReview`.`book_id`
+				LEFT JOIN `review` ON `bookReview`.`review_id` = `review`.`id`
+                ORDER BY `review`.`dateRead` DESC");
 
         $stmt->execute();
         $books = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -749,9 +800,23 @@ switch ($cmd) {
                     book.read,
                     book.priority,
                     book.dateAdded,
-                    book.dateRead,
+                            (
+                                SELECT r.dateRead
+                                FROM bookReview br
+                                JOIN review r ON r.id = br.review_id
+                                WHERE br.book_id = book.id
+                                ORDER BY r.dateRead DESC, r.id DESC
+                                LIMIT 1
+                            ) AS dateRead,
+                            (
+                                SELECT r.rating
+                                FROM bookReview br
+                                JOIN review r ON r.id = br.review_id
+                                WHERE br.book_id = book.id
+                                ORDER BY r.dateRead DESC, r.id DESC
+                                LIMIT 1
+                            ) AS rating,
                     book.notes,
-                    book.rating,
                     list.name AS list,
                     book.url
                 FROM book
@@ -819,7 +884,6 @@ switch ($cmd) {
                     book.read,
                     book.priority,
                     book.dateAdded,
-                    book.dateRead,
                     book.notes,
                     (
                         SELECT GROUP_CONCAT(l.id, ', ')
@@ -828,8 +892,6 @@ switch ($cmd) {
                         WHERE bl.book = book.id
                     ) AS list,
                     book.url,
-                    book.rating,
-                    book.review,
                     book.sourceId as source
                 FROM book 
                 LEFT JOIN format ON book.formatId = format.id
@@ -845,6 +907,22 @@ switch ($cmd) {
             header('Location: /');
             exit;
         }
+
+        // Get all reads for this book
+        $reviewsStmt = $pdo->prepare("
+                    SELECT
+                        r.`id`,
+                        r.`dateRead`,
+                        r.`rating`,
+                        r.`review`
+                    FROM `bookReview` br
+                    INNER JOIN `review` r ON r.`id` = br.`review_id`
+                    WHERE br.`book_id` = :bookId
+                    ORDER BY r.`dateRead` ASC, r.`id` ASC
+                ");
+        $reviewsStmt->bindValue(':bookId', (int)$id, PDO::PARAM_INT);
+        $reviewsStmt->execute();
+        $reviews = $reviewsStmt->fetchAll(PDO::FETCH_ASSOC);
 
         // Get all lists
         $listStmt = $pdo->prepare("
@@ -879,7 +957,55 @@ switch ($cmd) {
         $smarty->assign('book', $book);
         $smarty->assign('formats', $formats);
         $smarty->assign('lists', $lists);
+        $smarty->assign('reviews', $reviews);
         $smarty->display('viewDetails.tpl');
+        break;
+
+    case 'addReview':
+
+        $bookId = isset($_REQUEST['bookId']) ? (int)$_REQUEST['bookId'] : 0;
+        $dateRead = isset($_REQUEST['date']) ? $_REQUEST['date'] : null;
+        $rating = isset($_REQUEST['rating']) ? (int)$_REQUEST['rating'] : null;
+        $comment = isset($_REQUEST['comment']) ? trim($_REQUEST['comment']) : '';
+
+        if ($bookId <= 0 || empty($dateRead)) {
+            $_SESSION['error'] = 'Unable to add review.';
+            header('Location: /viewDetails/' . $bookId);
+            exit;
+        }
+
+        try {
+            $pdo->beginTransaction();
+
+            $reviewStmt = $pdo->prepare("INSERT INTO `review` (`dateRead`, `rating`, `review`) VALUES (:dateRead, :rating, :review)");
+            $reviewStmt->bindValue(':dateRead', $dateRead, PDO::PARAM_STR);
+            if ($rating === null) {
+                $reviewStmt->bindValue(':rating', null, PDO::PARAM_NULL);
+            } else {
+                $reviewStmt->bindValue(':rating', $rating, PDO::PARAM_INT);
+            }
+            $reviewStmt->bindValue(':review', $comment, PDO::PARAM_STR);
+            $reviewStmt->execute();
+
+            $reviewId = (int)$pdo->lastInsertId();
+
+            $linkStmt = $pdo->prepare("INSERT INTO `bookReview` (`book_id`, `review_id`) VALUES (:bookId, :reviewId)");
+            $linkStmt->bindValue(':bookId', $bookId, PDO::PARAM_INT);
+            $linkStmt->bindValue(':reviewId', $reviewId, PDO::PARAM_INT);
+            $linkStmt->execute();
+
+            $pdo->commit();
+            $_SESSION['error'] = 'Review added.';
+        } catch (Exception $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            $_SESSION['error'] = 'Unable to add review.';
+        }
+
+        header('Location: /viewDetails/' . $bookId);
+        exit;
+
         break;
 
     case 'manualAdd':
@@ -1702,10 +1828,12 @@ switch ($cmd) {
         $unreadBooks = $unreadBooksStmt->fetchColumn();
 
         $yearStatsStmt = $pdo->prepare("
-            SELECT SUBSTR(`book`.`dateRead`,1,4) AS year, COUNT(*) AS count
+            SELECT SUBSTR(`review`.`dateRead`,1,4) AS year, COUNT(*) AS count
             FROM `book`
-            WHERE (`book`.`dateRead` IS NOT NULL
-              AND `book`.`dateRead` <> '')
+            LEFT JOIN `bookReview` ON `book`.`id` = `bookReview`.`book_id`
+            LEFT JOIN `review` ON `bookReview`.`review_id` = `review`.`id`
+            WHERE (`review`.`dateRead` IS NOT NULL
+              AND `review`.`dateRead` <> '')
             GROUP BY year
             ORDER BY year ASC
         ");
@@ -1728,7 +1856,9 @@ switch ($cmd) {
         $authorStatsStmt = $pdo->prepare("
             SELECT `book`.`author` as 'name', count(*) as 'count'
             FROM `book`
-            WHERE `book`.`dateRead` is not NULL
+            LEFT JOIN `bookReview` ON `book`.`id` = `bookReview`.`book_id`
+            LEFT JOIN `review` ON `bookReview`.`review_id` = `review`.`id`
+            WHERE `review`.`dateRead` is not NULL
             GROUP BY `book`.`author`
             ORDER BY count desc limit 10
         ");
@@ -1741,21 +1871,25 @@ switch ($cmd) {
         // Get the number of books in each format
         $formatStatsStmt = $pdo->prepare("
             WITH years AS (
-            SELECT DISTINCT SUBSTR(dateRead,1,4) AS year
+            SELECT DISTINCT SUBSTR(`review`.`dateRead`,1,4) AS year
             FROM book
-            WHERE dateRead IS NOT NULL AND TRIM(dateRead) <> ''
+            LEFT JOIN `bookReview` ON `book`.`id` = `bookReview`.`book_id`
+            LEFT JOIN `review` ON `bookReview`.`review_id` = `review`.`id`
+            WHERE `review`.`dateRead` IS NOT NULL AND TRIM(`review`.`dateRead`) <> ''
             ),
             fmt AS (
             SELECT id, name FROM format
             ),
             counts AS (
             SELECT 
-                SUBSTR(b.dateRead,1,4) AS year,
+                SUBSTR(`review`.`dateRead`,1,4) AS year,
                 b.formatId,
                 COUNT(b.id) AS cnt
             FROM book b
-            WHERE b.dateRead IS NOT NULL AND TRIM(b.dateRead) <> ''
-            GROUP BY SUBSTR(b.dateRead,1,4), b.formatId
+            LEFT JOIN `bookReview` ON `b`.`id` = `bookReview`.`book_id`
+            LEFT JOIN `review` ON `bookReview`.`review_id` = `review`.`id`
+            WHERE `review`.`dateRead` IS NOT NULL AND TRIM(`review`.`dateRead`) <> ''
+            GROUP BY SUBSTR(`review`.`dateRead`,1,4), b.formatId
             )
             SELECT 
             y.year AS year,
