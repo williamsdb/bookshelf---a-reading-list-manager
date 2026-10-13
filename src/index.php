@@ -1374,9 +1374,9 @@ switch ($cmd) {
         $isbn   = trim($_POST['isbnInput'] ?? $_POST['isbn'] ?? '');
         $url    = trim($_POST['urlInput'] ?? $_POST['url'] ?? '');
         $read   = trim($_POST['status'] ?? $_POST['read'] ?? '');
-        $dateRead = trim($_POST['dateRead'] ?? $_POST['dateRead'] ?? '');
-        $rating = trim($_POST['rating'] ?? $_POST['rating'] ?? '');
-        $review = trim($_POST['reviewText'] ?? $_POST['review'] ?? '');
+        //$dateRead = trim($_POST['dateRead'] ?? $_POST['dateRead'] ?? '');
+        //$rating = trim($_POST['rating'] ?? $_POST['rating'] ?? '');
+        //$review = trim($_POST['reviewText'] ?? $_POST['review'] ?? '');
 
         $formatId = isset($_POST['formatList']) && is_numeric($_POST['formatList']) ? (int)$_POST['formatList'] : (isset($_POST['format']) && is_numeric($_POST['format']) ? (int)$_POST['format'] : null);
 
@@ -1422,9 +1422,6 @@ switch ($cmd) {
                     isbn            = :isbn,
                     formatId        = :formatId,
                     read            = :read,
-                    dateRead        = :dateRead,
-                    rating          = :rating,
-                    review          = :review,
                     url             = :url
                 WHERE id = :id
             ');
@@ -1437,9 +1434,6 @@ switch ($cmd) {
                 ':isbn'           => ($isbn !== '' ? $isbn : null),
                 ':formatId'       => $formatId,
                 ':read'           => $read,
-                ':dateRead'       => $dateRead,
-                ':rating'         => $rating,
-                ':review'         => ($review !== '' ? $review : null),
                 ':url'            => ($url !== '' ? $url : null),
                 ':id'             => $id
             ]);

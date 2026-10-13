@@ -672,23 +672,11 @@ function changeStatus(selectElement) {
 // handle the change of read status
 function changeStatusNoUpdate(selectElement) {
   const $select = $(selectElement);
-  const name = $select.attr("name");
   const value = $select.val();
-  const $table = $select.closest("table");
-  const idSuffix = name.split("_").pop();
-  const readDetails = document.getElementsByClassName("readDetailsAdd");
-  let statusText = "";
-  if (value === "0") {
-    statusText = "Not Read";
-    if (readDetails) $(".readDetailsAdd").hide();
-  } else if (value === "1") {
-    statusText = "Reading";
-    if (readDetails) $(".readDetailsAdd").hide();
-  } else if (value === "2") {
-    statusText = "Read";
-    if (readDetails) $(".readDetailsAdd").show();
-  } else {
-    statusText = value;
+
+  if (value === "2") {
+    // Trigger and display the modal dialog
+    $("#triggerModal").modal("show");
   }
 }
 
