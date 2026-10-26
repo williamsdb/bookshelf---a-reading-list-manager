@@ -3,6 +3,7 @@
 <!-- Footer starts -->
 </main>
 <footer class="pt-5 my-5 text-body-secondary border-top">
+  <label class="appearance-control"><input type="checkbox" id="classic-appearance"> Classic appearance</label>
   <p class="copy">Created by <a href="https://neilthompson.me" target="_blank">Neil Thompson</a>.</p>
 </footer>
 </div>

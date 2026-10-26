@@ -1,0 +1,75 @@
+/* Every visual override is scoped so Classic restores the original stylesheet. */
+.appearance-control { display: inline-flex; align-items: center; gap: .5rem; float: right; font: 400 .875rem system-ui, sans-serif; }
+.appearance-control input { accent-color: #276553; }
+html[data-appearance="modern"] {
+  --bs-body-bg: #f6f4ef;
+  --bs-body-color: #293c36;
+  --bs-secondary-color: #64736c;
+  --bs-border-color: #dce2da;
+  --bs-link-color: #21634e;
+  --bs-link-color-rgb: 33, 99, 78;
+  --bs-link-hover-color: #164532;
+  --shelf-surface: #fffefa;
+  --shelf-accent: #276553;
+  --shelf-soft: #e9efe8;
+  --shelf-shadow: 0 4px 18px rgba(32, 54, 43, .045);
+}
+html[data-appearance="modern"][data-bs-theme="dark"] {
+  --bs-body-bg: #18221f;
+  --bs-body-color: #e2e9e2;
+  --bs-secondary-color: #a6b8ad;
+  --bs-border-color: #3a4b42;
+  --bs-link-color: #a2d6b9;
+  --bs-link-color-rgb: 162, 214, 185;
+  --bs-link-hover-color: #c8ead5;
+  --shelf-surface: #212e28;
+  --shelf-accent: #a2d6b9;
+  --shelf-soft: #2b3b32;
+  --shelf-shadow: 0 4px 18px rgba(0, 0, 0, .1);
+}
+[data-appearance="modern"] body { font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-optical-sizing: auto; line-height: 1.6; }
+[data-appearance="modern"] .appearance-control { font-family: inherit; }
+[data-appearance="modern"] body > .col-lg-10 { max-width: 1320px; }
+[data-appearance="modern"] header { gap: 1.5rem; align-items: center; padding-bottom: 1.75rem !important; margin-bottom: 2.5rem !important; }
+[data-appearance="modern"] header .logo { width: 230px; height: auto; max-width: 100%; }
+[data-appearance="modern"] .nav-pills { gap: .25rem; align-items: center; }
+[data-appearance="modern"] .nav-link { color: var(--bs-body-color); font-weight: 600; padding: .65rem 1rem; border-radius: .65rem; }
+[data-appearance="modern"] .nav-link:hover,
+[data-appearance="modern"] .nav-link:focus-visible { color: var(--shelf-accent); background: var(--shelf-soft); }
+[data-appearance="modern"] h1,
+[data-appearance="modern"] h2,
+[data-appearance="modern"] h3 { font-family: Georgia, "Times New Roman", serif; letter-spacing: -.035em; line-height: 1.2; margin-bottom: 1.5rem; }
+[data-appearance="modern"] h3 { font-size: clamp(2rem, 4vw, 2.8rem); }
+[data-appearance="modern"] .card { --bs-card-bg: var(--shelf-surface); --bs-card-border-color: var(--bs-border-color); --bs-card-border-radius: 1rem; box-shadow: var(--shelf-shadow); overflow: hidden; }
+[data-appearance="modern"] .card-body { padding: 1.6rem; border-top: 3px solid var(--shelf-accent); }
+[data-appearance="modern"] .card-title { font-family: Georgia, "Times New Roman", serif; font-size: 1.4rem; line-height: 1.35; margin-bottom: .7rem; }
+[data-appearance="modern"] .card-subtitle { font-size: .9rem; line-height: 1.5; font-weight: 400; }
+[data-appearance="modern"] .card-footer { padding: 1rem 1.5rem; border-top-color: var(--bs-border-color); display: flex; flex-wrap: wrap; gap: .5rem; }
+[data-appearance="modern"] .card-footer:not([class*="footer-"]) { background: var(--shelf-soft); }
+[data-appearance="modern"][data-bs-theme="dark"] .card-footer[class*="footer-"] { color: #293c36; }
+[data-appearance="modern"] .btn { border-radius: .6rem; font-weight: 600; padding: .55rem 1rem; }
+[data-appearance="modern"] .btn-primary,
+[data-appearance="modern"] .btn-bd-primary { --bs-btn-bg: #276553; --bs-btn-border-color: #276553; --bs-btn-hover-bg: #1d4d3e; --bs-btn-hover-border-color: #1d4d3e; --bs-btn-active-bg: #173e32; --bs-btn-active-border-color: #173e32; --bs-btn-focus-shadow-rgb: 39, 101, 83; }
+[data-appearance="modern"] .card-footer .btn-danger { --bs-btn-bg: transparent; --bs-btn-color: #a52f36; --bs-btn-border-color: #c78989; --bs-btn-hover-bg: #a52f36; --bs-btn-hover-border-color: #a52f36; }
+[data-appearance="modern"][data-bs-theme="dark"] .card-footer:not([class*="footer-"]) .btn-danger { --bs-btn-color: #ffb9b9; }
+[data-appearance="modern"] .form-control,
+[data-appearance="modern"] .form-select,
+[data-appearance="modern"] .select2-selection { background-color: var(--shelf-surface); border-color: var(--bs-border-color); border-radius: .6rem; min-height: 2.75rem; }
+[data-appearance="modern"] .form-control:focus,
+[data-appearance="modern"] .form-select:focus { border-color: var(--shelf-accent); box-shadow: 0 0 0 .2rem rgba(75, 141, 106, .18); }
+[data-appearance="modern"] #listSelect { min-width: 220px; margin-bottom: 1rem; }
+[data-appearance="modern"] .table { --bs-table-bg: var(--shelf-surface); --bs-table-striped-bg: var(--shelf-soft); --bs-table-color: var(--bs-body-color); --bs-table-striped-color: var(--bs-body-color); border-color: var(--bs-border-color); }
+[data-appearance="modern"] .table > :not(caption) > * > * { padding: 1rem; }
+[data-appearance="modern"] .table thead th { font-size: .8rem; letter-spacing: .055em; text-transform: uppercase; color: var(--bs-secondary-color); }
+[data-appearance="modern"] .dropdown-menu { --bs-dropdown-bg: var(--shelf-surface); --bs-dropdown-link-hover-bg: var(--shelf-soft); padding: .5rem; border-radius: .8rem; box-shadow: var(--shelf-shadow); }
+[data-appearance="modern"] .dropdown-item { padding: .55rem .8rem; border-radius: .4rem; }
+[data-appearance="modern"] footer { font-size: .85rem; padding-top: 1.5rem !important; padding-bottom: 3rem; }
+[data-appearance="modern"] :focus-visible { outline: 3px solid var(--shelf-accent); outline-offset: 3px; }
+@media (max-width: 767px) {
+  [data-appearance="modern"] body > .col-lg-10 { padding: 1rem !important; }
+  [data-appearance="modern"] header { gap: .75rem; }
+  [data-appearance="modern"] .nav-link { padding: .5rem .75rem; }
+  [data-appearance="modern"] .card-body { padding: 1.25rem; }
+  [data-appearance="modern"] .table > :not(caption) > * > * { padding: .65rem; }
+  .appearance-control { float: none; margin-bottom: 1rem; }
+}

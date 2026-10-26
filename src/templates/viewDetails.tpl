@@ -96,11 +96,10 @@
                 </td>
             </tr>
             <tr>
-                <td colspan="2">
-                    <table width="100%" border="0">
-                        <tr>
-                            <td width="15%"><strong>Series</strong></td>
-                            <td width="70%">
+                <td width="15%"><label for="seriesInput"><strong>Series</strong></label></td>
+                <td>
+                    <div class="d-flex gap-2 align-items-center">
+                        <div class="flex-grow-1" style="min-width: 0;">
                                 <input type="text" class="form-control" id="seriesInput" name="seriesInput" list="seriesSuggestions" autocomplete="off" value="{$book.series}" />
                                 <datalist id="seriesSuggestions"></datalist>
                                 <script>
@@ -148,10 +147,12 @@
                                 })();
                                 {/literal}
                                 </script>
-                            </td>
-                            <td width="5%"><strong>&nbsp;&nbsp;&nbsp;#</strong></td><td align="left"><input type="number" class="form-control" id="numberInput" name="numberInput"  value="{$book.seriesPosition}" /></td>
-                        </tr>
-                    </table>
+                        </div>
+                        <div class="d-flex flex-shrink-0 align-items-center gap-2">
+                            <label for="numberInput"><strong>#</strong></label>
+                            <input type="number" class="form-control" id="numberInput" name="numberInput" style="width: 4.5rem;" value="{$book.seriesPosition}" />
+                        </div>
+                    </div>
                 </td>
             </tr>
             <tr>
