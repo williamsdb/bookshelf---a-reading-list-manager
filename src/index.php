@@ -1734,10 +1734,9 @@ switch ($cmd) {
 
                 // Update the read status for the given book id
                 if ($readStatus === 2) {
-                    $update = $pdo->prepare("UPDATE book SET read = :readStatus, dateRead = :dateRead WHERE id = :bookId");
+                    $update = $pdo->prepare("UPDATE book SET read = :readStatus WHERE id = :bookId");
                     $update->execute([
                         ':readStatus' => $readStatus,
-                        ':dateRead' => date('Y-m-d'),
                         ':bookId' => $bookId
                     ]);
                 } else {
