@@ -1,6 +1,6 @@
 {include file="header.tpl"}
 
-<!-- Add a review Modal -->
+<!-- Add or edit a review -->
 <div class="modal fade" id="triggerModal" tabindex="-1" aria-labelledby="triggerModalLabel" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
@@ -14,8 +14,8 @@
 				<label for="datetimePicker" class="form-label">Date Read</label>
 				<input type="date" class="form-control" name="date" id="datetimePicker" required>
 				<div id="error-message" style="color: red; display: none;">The date must be in the past.</div>
-				<label for="ratingSelectNoUpdate" class="form-label" style="margin-top: 10px;">Rating (optional)</label>
-                <select name="rating" id="ratingSelectNoUpdate" class="form-select">
+				<label for="reviewRating" class="form-label" style="margin-top: 10px;">Rating (optional)</label>
+                <select name="rating" id="reviewRating" class="form-select">
                         <option value="0">No rating</option>
                         {section name=star start=1 loop=11}
                             {assign var="value" value=$smarty.section.star.index * 0.5}
@@ -24,6 +24,7 @@
                 </select>
 				<label for="triggerComment" class="form-label" style="margin-top: 10px;">Review (optional)</label>
 				<textarea class="form-control" name="comment" id="triggerComment" maxlength="1000" rows="4" style="height: 100px; resize: vertical;"></textarea>
+				<input type="hidden" name="reviewId" id="reviewId" value="">
 				<input type="hidden" class="form-control" name="bookId" id="bookId" value="{$book.id}">
 				<input type="hidden" class="form-control" name="redirectTo" id="redirectTo" value="viewDetails">
 			</div>
@@ -302,6 +303,14 @@
                 <td>
                     {$review.dateRead|date_format:"%Y-%m-%d"} &nbsp; <span class="review-rating-stars" data-rating="{$review.rating|escape:'html'}"></span><br/>
                     {$review.review|escape:"html"}
+                </td>
+                <td class="text-end">
+                    <button type="button" class="btn btn-primary btn-sm"
+                        data-bs-toggle="modal" data-bs-target="#triggerModal"
+                        data-review-id="{$review.id|escape:'html'}"
+                        data-review-date="{$review.dateRead|escape:'html'}"
+                        data-review-rating="{$review.rating|escape:'html'}"
+                        data-review-comment="{$review.review|escape:'html'}">Edit</button>
                 </td>
             </tr>
         {/foreach}

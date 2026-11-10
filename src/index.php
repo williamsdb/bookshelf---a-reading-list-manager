@@ -1025,14 +1025,23 @@ switch ($cmd) {
         break;
 
     case 'addReview':
+    case 'updateReview':
 
-        $bookId = isset($_REQUEST['bookId']) ? (int)$_REQUEST['bookId'] : 0;
-        $dateRead = isset($_REQUEST['date']) ? $_REQUEST['date'] : null;
-        $rating = isset($_REQUEST['rating']) ? (int)$_REQUEST['rating'] : null;
-        $comment = isset($_REQUEST['comment']) ? trim($_REQUEST['comment']) : '';
+        $editingReview = $cmd === 'updateReview';
+        $bookId = (int)($_POST['bookId'] ?? 0);
+        $reviewId = (int)($_POST['reviewId'] ?? 0);
+        $dateRead = $_POST['date'] ?? '';
+        $rating = $_POST['rating'] ?? '0';
+        $comment = trim($_POST['comment'] ?? '');
+        $parsedDate = DateTimeImmutable::createFromFormat('!Y-m-d', $dateRead);
 
-        if ($bookId <= 0 || empty($dateRead)) {
-            $_SESSION['error'] = 'Unable to add review.';
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST' || $bookId <= 0
+            || ($editingReview && $reviewId <= 0)
+            || !$parsedDate || $parsedDate->format('Y-m-d') !== $dateRead
+            || $dateRead > date('Y-m-d')
+            || !is_numeric($rating) || (float)$rating < 0 || (float)$rating > 5
+            || fmod((float)$rating * 2, 1.0) !== 0.0) {
+            $_SESSION['error'] = $editingReview ? 'Unable to update review.' : 'Unable to add review.';
             header('Location: /viewDetails/' . $bookId);
             exit;
         }
@@ -1040,30 +1049,39 @@ switch ($cmd) {
         try {
             $pdo->beginTransaction();
 
-            $reviewStmt = $pdo->prepare("INSERT INTO `review` (`dateRead`, `rating`, `review`) VALUES (:dateRead, :rating, :review)");
-            $reviewStmt->bindValue(':dateRead', $dateRead, PDO::PARAM_STR);
-            if ($rating === null) {
-                $reviewStmt->bindValue(':rating', null, PDO::PARAM_NULL);
+            if ($editingReview) {
+                // Only update a review that belongs to the submitted book.
+                $linkedReview = $pdo->prepare("SELECT review_id FROM bookReview WHERE book_id = :bookId AND review_id = :reviewId");
+                $linkedReview->execute([':bookId' => $bookId, ':reviewId' => $reviewId]);
+                if (!$linkedReview->fetchColumn()) {
+                    throw new RuntimeException('Review not found for this book.');
+                }
+                $reviewStmt = $pdo->prepare("UPDATE `review` SET `dateRead` = :dateRead, `rating` = :rating, `review` = :review WHERE `id` = :reviewId");
+                $reviewStmt->bindValue(':reviewId', $reviewId, PDO::PARAM_INT);
             } else {
-                $reviewStmt->bindValue(':rating', $rating, PDO::PARAM_INT);
+                $reviewStmt = $pdo->prepare("INSERT INTO `review` (`dateRead`, `rating`, `review`) VALUES (:dateRead, :rating, :review)");
             }
+            $reviewStmt->bindValue(':dateRead', $dateRead, PDO::PARAM_STR);
+            // Bind as a string to preserve half-star ratings with PDO.
+            $reviewStmt->bindValue(':rating', (string)(float)$rating, PDO::PARAM_STR);
             $reviewStmt->bindValue(':review', $comment, PDO::PARAM_STR);
             $reviewStmt->execute();
 
-            $reviewId = (int)$pdo->lastInsertId();
-
-            $linkStmt = $pdo->prepare("INSERT INTO `bookReview` (`book_id`, `review_id`) VALUES (:bookId, :reviewId)");
-            $linkStmt->bindValue(':bookId', $bookId, PDO::PARAM_INT);
-            $linkStmt->bindValue(':reviewId', $reviewId, PDO::PARAM_INT);
-            $linkStmt->execute();
+            if (!$editingReview) {
+                $reviewId = (int)$pdo->lastInsertId();
+                $linkStmt = $pdo->prepare("INSERT INTO `bookReview` (`book_id`, `review_id`) VALUES (:bookId, :reviewId)");
+                $linkStmt->bindValue(':bookId', $bookId, PDO::PARAM_INT);
+                $linkStmt->bindValue(':reviewId', $reviewId, PDO::PARAM_INT);
+                $linkStmt->execute();
+            }
 
             $pdo->commit();
-            $_SESSION['error'] = 'Review added.';
+            $_SESSION['error'] = $editingReview ? 'Review updated.' : 'Review added.';
         } catch (Exception $e) {
             if ($pdo->inTransaction()) {
                 $pdo->rollBack();
             }
-            $_SESSION['error'] = 'Unable to add review.';
+            $_SESSION['error'] = $editingReview ? 'Unable to update review.' : 'Unable to add review.';
         }
 
         header('Location: /viewDetails/' . $bookId);

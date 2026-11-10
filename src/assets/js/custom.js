@@ -170,6 +170,26 @@ $(document).ready(function () {
     },
   });
 
+  const reviewModal = document.getElementById("triggerModal");
+  if (reviewModal && document.getElementById("reviewId")) {
+    reviewModal.addEventListener("show.bs.modal", function (event) {
+      const button = event.relatedTarget;
+      const reviewId = button ? button.getAttribute("data-review-id") : "";
+      const editing = Boolean(reviewId);
+      const form = document.getElementById("reviewForm");
+      form.reset();
+      form.action = editing ? "/updateReview" : "/addReview";
+      document.getElementById("triggerModalLabel").textContent = editing ? "Edit Review" : "Add a Review";
+      document.getElementById("reviewId").value = reviewId || "";
+      document.getElementById("error-message").style.display = "none";
+      if (editing) {
+        document.getElementById("datetimePicker").value = (button.getAttribute("data-review-date") || "").slice(0, 10);
+        document.getElementById("reviewRating").value = String(Number(button.getAttribute("data-review-rating")) || 0);
+        document.getElementById("triggerComment").value = button.getAttribute("data-review-comment") || "";
+      }
+    });
+  }
+
   // action on submitting the review dialog
   if (document.getElementById("reviewButton")) {
     document
@@ -200,7 +220,8 @@ $(document).ready(function () {
         }
 
         // Trigger the form submission
-        document.getElementById("reviewForm").submit();
+        const form = document.getElementById("reviewForm");
+        if (form.reportValidity()) form.submit();
       });
   }
 
