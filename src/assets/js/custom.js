@@ -221,7 +221,26 @@ $(document).ready(function () {
 
         // Trigger the form submission
         const form = document.getElementById("reviewForm");
-        if (form.reportValidity()) form.submit();
+        if (!form.reportValidity()) return;
+        const bookForm = document.getElementById("bookDetailsForm");
+        if (!bookForm) {
+          form.submit();
+          return;
+        }
+        if (!bookForm.reportValidity()) return;
+
+        // Save the book edits and review together before reloading the page.
+        bookForm.querySelectorAll("[data-pending-review]").forEach((input) => input.remove());
+        const reviewFields = new FormData(form);
+        ["reviewId", "date", "rating", "comment"].forEach((name) => {
+          const input = document.createElement("input");
+          input.type = "hidden";
+          input.name = "pendingReview[" + name + "]";
+          input.value = reviewFields.get(name) || "";
+          input.setAttribute("data-pending-review", "");
+          bookForm.appendChild(input);
+        });
+        bookForm.requestSubmit();
       });
   }
 

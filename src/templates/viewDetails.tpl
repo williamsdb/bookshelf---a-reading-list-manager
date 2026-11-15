@@ -40,7 +40,7 @@
 
 <h1>View & edit book details</h1>
 
-<form role="form" action="/updateBook" method="post">
+<form role="form" action="/updateBook" method="post" id="bookDetailsForm">
     <table class="table table-striped">
         <tbody>
             <tr><td width="15%"><strong>Title<sup>*</sup></strong></td><td align="left"><input type="text" class="form-control" id="titleInput" name="titleInput" value="{$book.title}" required /></td></tr>

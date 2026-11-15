@@ -1,6 +1,5 @@
 <a name="readme-top"></a>
 
-
 <!-- PROJECT LOGO -->
 <br />
 <div align="center">
@@ -12,8 +11,6 @@
     <br />
   </p>
 </div>
-
-
 
 <!-- TABLE OF CONTENTS -->
 <details>
@@ -41,35 +38,30 @@
   </ol>
 </details>
 
-
-
 <!-- ABOUT THE PROJECT -->
+
 ## About The Project
 
 Bookshelf - A reading list manager. A place where you can manage all your reading, whether it be physical, electronic, or audio formats. Mark which ones you are reading or have read, and place books into lists such as the default "Priority" list for those you want to read next.
 
 Read more about the project [here](https://www.spokenlikeageek.com/2025/09/01/bookshelf-a-reading-list-manager/).
 
-
-![](https://www.spokenlikeageek.com/wp-content/uploads/2025/08/bookshelf-a-reading-list-manager-scaled.png?w=2560&ssl=1)
+![](https://www.spokenlikeageek.com/wp-content/uploads/2025/08/bookshelf-a-reading-list-manager-scaled.png)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-
 
 ### Built With
 
-* [PHP](https://php.net)
-* [Boostrap](https://getbootstrap.com/)
-* [smarty](https://github.com/smarty-php/smarty)
-* [Open Library](https://openlibrary.org/dev/docs/api/books)
-* [Quagga](https://serratus.github.io/quaggaJS/)
+- [PHP](https://php.net)
+- [Boostrap](https://getbootstrap.com/)
+- [smarty](https://github.com/smarty-php/smarty)
+- [Open Library](https://openlibrary.org/dev/docs/api/books)
+- [Quagga](https://serratus.github.io/quaggaJS/)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-
-
 <!-- GETTING STARTED -->
+
 ## Getting Started
 
 Getting up and running is very straightforward:
@@ -77,11 +69,10 @@ Getting up and running is very straightforward:
 1. download the code/clone the repository
 2. install [composer](https://getcomposer.org/)
 3. add the smarty templating engine and phpMailer
-    
-    > php composer.phar install
-    
-4. follow the installation instructions below.
 
+   > php composer.phar install
+
+4. follow the installation instructions below.
 
 You can read more about how it all works in [these blog posts](https://www.spokenlikeageek.com/tag/bookshelf/).
 
@@ -96,34 +87,32 @@ Requirements are very simple, it requires the following:
 
 You must install the dependencies, create some required files and set the appropriate permissions. This is what I did but you may need to adjust depending on your flavour of OS:
 
-1. ```git clone https://github.com/williamsdb/bookshelf---a-reading-list-manager```
-2. ```cd bookshelf---a-reading-list-manager\src```
-1. ```mkdir vendor```
-2. ```php composer.phar install```
-3. ```sudo mkdir templates_c```
-4. ```sudo chown apache:apache templates_c -R```
-5. ```sudo chcon -R -t httpd_sys_rw_content_t templates_c```
-6. ```sudo mkdir uploads```
-7. ```sudo chown apache:apache uploads -R```
-8. ```sudo chcon -R -t httpd_sys_rw_content_t uploads```
-9. ```sudo mv config_dummy.php config.php```
-10. ```cd ..```
-11. ```sudo chown apache:apache src```
+1. `git clone https://github.com/williamsdb/bookshelf---a-reading-list-manager`
+2. `cd bookshelf---a-reading-list-manager\src`
+3. `mkdir vendor`
+4. `php composer.phar install`
+5. `sudo mkdir templates_c`
+6. `sudo chown apache:apache templates_c -R`
+7. `sudo chcon -R -t httpd_sys_rw_content_t templates_c`
+8. `sudo mkdir uploads`
+9. `sudo chown apache:apache uploads -R`
+10. `sudo chcon -R -t httpd_sys_rw_content_t uploads`
+11. `sudo mv config_dummy.php config.php`
+12. `cd ..`
+13. `sudo chown apache:apache src`
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-
-
 <!-- USAGE EXAMPLES -->
+
 ## Usage
 
 _For more information, please refer to the [these blog posts](https://www.spokenlikeageek.com/tag/bookshelf/)_
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-
-
 <!-- ROADMAP -->
+
 ## Known Issues
 
 - None
@@ -132,9 +121,8 @@ See the [open issues](https://github.com/williamsdb/bookshelf---a-reading-list-m
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-
-
 <!-- CONTRIBUTING -->
+
 ## Contributing
 
 Contributions are what make the open source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
@@ -150,21 +138,19 @@ Don't forget to give the project a star! Thanks again!
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-
-
 <!-- LICENSE -->
+
 ## License
 
 Distributed under the GNU General Public License v3.0. See `LICENSE` for more information.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-
-
 <!-- CONTACT -->
+
 ## Contact
 
-X - [@spokenlikeageek](https://x.com/spokenlikeageek) 
+X - [@spokenlikeageek](https://x.com/spokenlikeageek)
 
 Bluesky - [@spokenlikeageek.com](https://bsky.app/profile/spokenlikeageek.com)
 
@@ -172,24 +158,21 @@ Mastodon - [@spokenlikeageek](https://techhub.social/@spokenlikeageek)
 
 Website - [https://spokenlikeageek.com](https://www.spokenlikeageek.com/tag/bookshelf/)
 
-
 Project link - [Github](https://github.com/williamsdb/bookshelf---a-reading-list-manager)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-
-
 <!-- ACKNOWLEDGMENTS -->
+
 ## Acknowledgments
 
-* None
+- None
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-
-
 <!-- MARKDOWN LINKS & IMAGES -->
 <!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
+
 [contributors-shield]: https://img.shields.io/github/contributors/github_username/repo_name.svg?style=for-the-badge
 [contributors-url]: https://github.com/github_username/repo_name/graphs/contributors
 [forks-shield]: https://img.shields.io/github/forks/github_username/repo_name.svg?style=for-the-badge
@@ -218,4 +201,4 @@ Project link - [Github](https://github.com/williamsdb/bookshelf---a-reading-list
 [Bootstrap.com]: https://img.shields.io/badge/Bootstrap-563D7C?style=for-the-badge&logo=bootstrap&logoColor=white
 [Bootstrap-url]: https://getbootstrap.com
 [JQuery.com]: https://img.shields.io/badge/jQuery-0769AD?style=for-the-badge&logo=jquery&logoColor=white
-[JQuery-url]: https://jquery.com 
+[JQuery-url]: https://jquery.com

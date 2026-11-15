@@ -697,8 +697,8 @@ switch ($cmd) {
                         $exists = $stmt->fetchColumn();
 
                         if (!$exists) {
-                            $insert = $pdo->prepare("INSERT INTO `book` (`author`, `title`, `isbn`, `formatId`, `sourceId`, `read`, `priority`, `dateAdded`, `dateRead`, `notes`, `list`, `url`, `series`, `seriesPosition`, `rating`, `review`)
-                                                        VALUES (:author, :title, :isbn, :formatId, :sourceId, :read, :priority, :dateAdded, :dateRead, :notes, :list, :url, :series, :seriesPosition, :rating, :review)");
+                            $insert = $pdo->prepare("INSERT INTO `book` (`author`, `title`, `isbn`, `formatId`, `sourceId`, `read`, `priority`, `dateAdded`, `notes`, `list`, `url`, `series`, `seriesPosition`)
+                                                        VALUES (:author, :title, :isbn, :formatId, :sourceId, :read, :priority, :dateAdded, :notes, :list, :url, :series, :seriesPosition)");
                             $insert->execute([
                                 ':author' => $author,
                                 ':title' => $title,
@@ -710,15 +710,13 @@ switch ($cmd) {
                                 ':read' => $read,
                                 ':priority' => $priority,
                                 ':dateAdded' => $dateAdded,
-                                ':dateRead' => $dateRead,
                                 ':notes' => $notes,
                                 ':list' => $list,
-                                ':url' => $url,
-                                ':rating' => $rating,
-                                ':review' => $review
+                                ':url' => $url
                             ]);
 
                             $bookId = $pdo->lastInsertId();
+                            createBookReview($pdo, (int)$bookId, $dateRead, $rating, $review);
                             $insertBookSource = $pdo->prepare("INSERT INTO `bookSource` (`book`, `source`) VALUES (:bookId, :sourceId)");
                             $insertBookSource->execute([
                                 ':bookId' => $bookId,
@@ -1196,7 +1194,7 @@ switch ($cmd) {
         $isbn   = trim($_POST['isbnInput'] ?? $_POST['isbn'] ?? '');
         $url    = trim($_POST['urlInput'] ?? $_POST['url'] ?? '');
         $read   = trim($_POST['status'] ?? $_POST['read'] ?? '');
-        $dateRead = trim($_POST['dateRead'] ?? $_POST['dateRead'] ?? '');
+        $dateRead = trim($_POST['dateRead'] ?? '');
         $rating = trim($_POST['rating'] ?? $_POST['rating'] ?? '');
         $review = trim($_POST['reviewText'] ?? $_POST['review'] ?? '');
         $formatId = isset($_POST['formatList']) && is_numeric($_POST['formatList']) ? (int)$_POST['formatList'] : (isset($_POST['format']) && is_numeric($_POST['format']) ? (int)$_POST['format'] : null);
@@ -1276,9 +1274,9 @@ switch ($cmd) {
             // Create new book
             $ins = $pdo->prepare('
                 INSERT INTO book
-                    (author, title, series, seriesPosition, isbn, formatId, sourceId, read, priority, dateAdded, dateRead, rating, review, notes, list, url)
+                    (author, title, series, seriesPosition, isbn, formatId, sourceId, read, priority, dateAdded, notes, list, url)
                 VALUES
-                    (:author, :title, :series, :seriesPosition, :isbn, :formatId, :sourceId, :read, :priority, :dateAdded, :dateRead, :rating, :review, :notes, :list, :url)
+                    (:author, :title, :series, :seriesPosition, :isbn, :formatId, :sourceId, :read, :priority, :dateAdded, :notes, :list, :url)
             ');
 
             $ins->execute([
@@ -1292,15 +1290,13 @@ switch ($cmd) {
                 ':read'          => $read,
                 ':priority'      => 0,
                 ':dateAdded'     => date('Y-m-d H:i:s'),
-                ':dateRead'      => $dateRead,
-                ':rating'        => $rating,
-                ':review'        => ($review !== '' ? $review : null),
                 ':notes'         => null,
                 ':list'          => 0,
                 ':url'           => ($url !== '' ? $url : null)
             ]);
 
             $bookId = (int)$pdo->lastInsertId();
+            createBookReview($pdo, $bookId, $dateRead, $rating, $review);
 
             // Handle genre(s) for the newly created book
             if (!empty($genre)) {
@@ -1428,6 +1424,36 @@ switch ($cmd) {
         try {
             $pdo->beginTransaction();
 
+
+            // Validate the optional review before changing any book details.
+            $pendingReview = $_POST['pendingReview'] ?? null;
+            if ($pendingReview !== null) {
+                if (!is_array($pendingReview)) {
+                    throw new RuntimeException('Invalid review.');
+                }
+                $reviewDate = $pendingReview['date'] ?? '';
+                $reviewRating = $pendingReview['rating'] ?? '0';
+                $reviewComment = trim($pendingReview['comment'] ?? '');
+                $reviewId = (int)($pendingReview['reviewId'] ?? 0);
+                $parsedDate = DateTimeImmutable::createFromFormat('!Y-m-d', $reviewDate);
+                if (!$parsedDate || $parsedDate->format('Y-m-d') !== $reviewDate
+                    || $reviewDate > date('Y-m-d') || !is_numeric($reviewRating)
+                    || (float)$reviewRating < 0 || (float)$reviewRating > 5
+                    || fmod((float)$reviewRating * 2, 1.0) !== 0.0 || $reviewId < 0) {
+                    throw new RuntimeException('Invalid review date or rating.');
+                }
+                if ($reviewId > 0) {
+                    $linkedReview = $pdo->prepare('SELECT review_id FROM bookReview WHERE book_id = :bookId AND review_id = :reviewId');
+                    $linkedReview->execute([':bookId' => $id, ':reviewId' => $reviewId]);
+                    if (!$linkedReview->fetchColumn()) {
+                        throw new RuntimeException('Review not found for this book.');
+                    }
+                    $saveReview = $pdo->prepare('UPDATE review SET dateRead = :date, rating = :rating, review = :comment WHERE id = :reviewId');
+                    $saveReview->execute([':date' => $reviewDate, ':rating' => $reviewRating, ':comment' => $reviewComment, ':reviewId' => $reviewId]);
+                } else {
+                    createBookReview($pdo, $id, $reviewDate, $reviewRating, $reviewComment);
+                }
+            }
 
             // Update book details
             $upd = $pdo->prepare('
@@ -1865,8 +1891,31 @@ switch ($cmd) {
             $bookId = intval($name);
 
             // Update the date for the given book id
-            $update = $pdo->prepare("UPDATE book SET dateRead = :date WHERE id = :bookId");
-            $update->execute([':date' => $date, ':bookId' => $bookId]);
+            $update = $pdo->prepare("UPDATE review SET dateRead = :date WHERE id = (
+                SELECT r.id FROM review r
+                JOIN bookReview br ON br.review_id = r.id
+                WHERE br.book_id = :bookId
+                ORDER BY r.dateRead DESC, r.id DESC LIMIT 1
+            )");
+            $pdo->beginTransaction();
+            try {
+                $update->execute([':date' => $date, ':bookId' => $bookId]);
+                if ($update->rowCount() === 0) {
+                    $bookExists = $pdo->prepare('SELECT id FROM book WHERE id = :bookId');
+                    $bookExists->execute([':bookId' => $bookId]);
+                    if (!$bookExists->fetchColumn()) {
+                        throw new RuntimeException('Book not found.');
+                    }
+                    createBookReview($pdo, $bookId, $date, null, null);
+                }
+                $pdo->commit();
+            } catch (Exception $e) {
+                $pdo->rollBack();
+                http_response_code(400);
+                header('Content-Type: application/json');
+                echo json_encode(['error' => 'Unable to update date read.']);
+                exit;
+            }
 
             header('Content-Type: application/json');
             $_SESSION['error'] = 'Book updated successfully.' . $date;
@@ -2503,7 +2552,7 @@ switch ($cmd) {
 
         $url = "https://openlibrary.org/works/$workId.json";
 
-        $response = file_get_contents($url);
+        $response = fetchOpenLibraryJson($url);
         if ($response === FALSE) {
             $_SESSION['error'] = 'Unable to fetch data from Open Library API';
             header('Location: /');
@@ -2527,7 +2576,7 @@ switch ($cmd) {
             $authorKey = $authorRef['author']['key']; // e.g., "/authors/OL12345A"
             $authorUrl = "https://openlibrary.org$authorKey.json";
 
-            $authorJson = file_get_contents($authorUrl);
+            $authorJson = fetchOpenLibraryJson($authorUrl);
             if (!$authorJson) {
                 continue; // skip if fetch fails
             }
@@ -3092,4 +3141,41 @@ function array_to_html($val, $var = FALSE)
     }
 
     return $out;
+}
+
+// Reading history belongs to review, linked through bookReview (schema 1.5+).
+function createBookReview(PDO $pdo, int $bookId, $dateRead, $rating, $review): void
+{
+    $dateRead = ($dateRead === '' ? null : $dateRead);
+    $rating = ($rating === '' ? null : $rating);
+    $review = ($review === '' ? null : $review);
+    if ($dateRead === null && ($rating === null || (float)$rating === 0.0) && $review === null) {
+        return;
+    }
+
+    $insert = $pdo->prepare('INSERT INTO review (dateRead, rating, review) VALUES (:dateRead, :rating, :review)');
+    $insert->execute([':dateRead' => $dateRead, ':rating' => $rating, ':review' => $review]);
+    $reviewId = (int)$pdo->lastInsertId();
+    $link = $pdo->prepare('INSERT INTO bookReview (book_id, review_id) VALUES (:bookId, :reviewId)');
+    $link->execute([':bookId' => $bookId, ':reviewId' => $reviewId]);
+}
+
+// Avoid macOS NAT64 DNS resolution crashes in forked MAMP PHP workers.
+function fetchOpenLibraryJson(string $url)
+{
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
+        CURLOPT_CONNECTTIMEOUT => 5,
+        CURLOPT_TIMEOUT => 15,
+        CURLOPT_USERAGENT => 'BookshelfApp/1.0',
+    ]);
+    $response = curl_exec($ch);
+    $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    if ($response === false || $status !== 200) {
+        error_log('Open Library request failed: ' . $url . ' HTTP ' . $status . ' ' . curl_error($ch));
+        return false;
+    }
+    return $response;
 }
