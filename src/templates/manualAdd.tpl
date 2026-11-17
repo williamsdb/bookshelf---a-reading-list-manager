@@ -111,7 +111,7 @@
                                 {/literal}
                                 </script>
                             </td>
-                            <td width="5%"><strong>&nbsp;&nbsp;&nbsp;#</strong></td><td align="left"><input type="number" class="form-control" id="numberInput" name="numberInput" /></td>
+                            <td width="5%"><strong>&nbsp;&nbsp;&nbsp;#</strong></td><td align="left"><input type="number" class="form-control" id="numberInput" name="numberInput" step="0.1" /></td>
                         </tr>
                     </table>
                 </td>

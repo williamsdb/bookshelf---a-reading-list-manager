@@ -109,7 +109,7 @@ try {
                         `author` TEXT NOT NULL,
                         `title` TEXT NOT NULL,
                         `series` TEXT NULL,
-                        `seriesPosition` INTEGER NULL,
+                        `seriesPosition` REAL NULL,
                         `isbn` TEXT NULL,
                         `formatId` TEXT NULL,
                         `sourceId` TEXT NULL,
@@ -328,7 +328,7 @@ try {
                         author TEXT NOT NULL,
                         title TEXT NOT NULL,
                         series TEXT NULL,
-                        seriesPosition INTEGER NULL,
+                        seriesPosition REAL NULL,
                         isbn TEXT NULL,
                         formatId TEXT NULL,
                         sourceId TEXT NULL,
@@ -582,6 +582,7 @@ switch ($cmd) {
                         }
                         $series = isset($map['series']) && isset($data[$map['series']]) ? trim($data[$map['series']]) : null;
                         $seriesPosition = isset($map['seriesPosition']) && isset($data[$map['seriesPosition']]) ? trim($data[$map['seriesPosition']]) : null;
+                        $seriesPosition = normalizeSeriesPosition($seriesPosition);
                         $genre = isset($map['genre']) && isset($data[$map['genre']]) ? trim($data[$map['genre']]) : null;
                         $isbn = isset($map['isbn']) && $map['isbn'] !== null && isset($data[$map['isbn']]) ? trim($data[$map['isbn']]) : null;
                         $rating = isset($map['rating']) && isset($data[$map['rating']]) ? trim($data[$map['rating']]) : null;
@@ -1189,7 +1190,7 @@ switch ($cmd) {
         $author = trim($_POST['authorInput'] ?? $_POST['author'] ?? '');
         $series = trim($_POST['seriesInput'] ?? $_POST['series'] ?? '');
         $seriesPosRaw = trim($_POST['numberInput'] ?? $_POST['seriesPosition'] ?? '');
-        $seriesPosition = ($seriesPosRaw === '' ? null : (int)$seriesPosRaw);
+        $seriesPosition = normalizeSeriesPosition($seriesPosRaw);
         $genre  = trim($_POST['genreInput'] ?? $_POST['genre'] ?? '');
         $isbn   = trim($_POST['isbnInput'] ?? $_POST['isbn'] ?? '');
         $url    = trim($_POST['urlInput'] ?? $_POST['url'] ?? '');
@@ -1206,6 +1207,12 @@ switch ($cmd) {
             $lists = [$lists];
         }
         $lists = array_values(array_unique(array_filter(array_map('intval', $lists))));
+
+        if ($seriesPosRaw !== '' && $seriesPosition === null) {
+            $_SESSION['error'] = 'Series number must be a valid number.';
+            header('Location: /manualAdd');
+            exit;
+        }
 
         // Basic validation
         if ($title === '' || $author === '' || !$formatId) {
@@ -1383,7 +1390,7 @@ switch ($cmd) {
         $author = trim($_POST['authorInput'] ?? $_POST['author'] ?? '');
         $series = trim($_POST['seriesInput'] ?? $_POST['series'] ?? '');
         $seriesPosRaw = trim($_POST['numberInput'] ?? $_POST['seriesPosition'] ?? '');
-        $seriesPosition = ($seriesPosRaw === '' ? null : (int)$seriesPosRaw);
+        $seriesPosition = normalizeSeriesPosition($seriesPosRaw);
         $genre  = trim($_POST['genreInput'] ?? $_POST['genre'] ?? '');
         $isbn   = trim($_POST['isbnInput'] ?? $_POST['isbn'] ?? '');
         $url    = trim($_POST['urlInput'] ?? $_POST['url'] ?? '');
@@ -1400,6 +1407,12 @@ switch ($cmd) {
             $lists = [$lists];
         }
         $lists = array_values(array_unique(array_filter(array_map('intval', $lists))));
+
+        if ($seriesPosRaw !== '' && $seriesPosition === null) {
+            $_SESSION['error'] = 'Series number must be a valid number.';
+            header('Location: /viewDetails/' . $id);
+            exit;
+        }
 
         // Basic validation
         if ($title === '' || $author === '' || !$formatId) {
@@ -3178,4 +3191,18 @@ function fetchOpenLibraryJson(string $url)
         return false;
     }
     return $response;
+}
+
+// SQLite INTEGER-affinity columns in existing databases also preserve REAL values.
+// Normalize every input path to one decimal place; an empty position stays optional.
+function normalizeSeriesPosition($value): ?float
+{
+    if ($value === null || !is_scalar($value)) {
+        return null;
+    }
+    $value = trim((string)$value);
+    if ($value === '' || !is_numeric($value) || !is_finite((float)$value)) {
+        return null;
+    }
+    return round((float)$value, 1);
 }

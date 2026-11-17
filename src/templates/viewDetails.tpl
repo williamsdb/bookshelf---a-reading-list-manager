@@ -151,7 +151,7 @@
                         </div>
                         <div class="d-flex flex-shrink-0 align-items-center gap-2">
                             <label for="numberInput"><strong>#</strong></label>
-                            <input type="number" class="form-control" id="numberInput" name="numberInput" style="width: 4.5rem;" value="{$book.seriesPosition}" />
+                            <input type="number" class="form-control" id="numberInput" name="numberInput" step="0.1" style="width: 6rem;" value="{$book.seriesPosition}" />
                         </div>
                     </div>
                 </td>
