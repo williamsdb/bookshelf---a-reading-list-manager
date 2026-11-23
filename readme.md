@@ -123,6 +123,8 @@ Plex artwork already cached locally remains available while Plex is offline. Una
 
 Open Library images are displayed directly from its Covers API; only metadata references are stored locally. Lookups use an Open Library book/work link or ISBN, then an exact title-and-author match for books without either identifier. Metadata requests are paced and do not bulk-download Open Library images.
 
+To supply your own artwork, open a book’s details, choose **Upload a cover**, then click **Save**. JPEG, PNG and WebP images up to 5 MB and 16 megapixels are accepted (subject to the server’s PHP upload limits). Only the resized thumbnail is kept, and uploaded artwork takes precedence over future imports and automatic lookups.
+
 Run the cover regression checks with `php tests/CoverServiceTest.php`.
 
 ## Known Issues

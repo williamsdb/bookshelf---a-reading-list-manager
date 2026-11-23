@@ -21,7 +21,7 @@ $transport = function ($url, $plex) use (&$calls, &$responses) {
 };
 $service = new CoverService($pdo, $root, 'http://plex.test:32400', 'private-token', $transport);
 $insert = $pdo->prepare('INSERT INTO book VALUES(?,?,?,?,?,?)');
-for ($id = 1; $id <= 12; $id++) $insert->execute([$id, 'A Christmas Carol', 'Charles Dickens', '', '', 2]);
+for ($id = 1; $id <= 18; $id++) $insert->execute([$id, 'A Christmas Carol', 'Charles Dickens', '', '', 2]);
 $pdo->exec('UPDATE book SET sourceId=1 WHERE id IN (1,2,3,4)');
 
 try {
@@ -94,8 +94,52 @@ try {
     check($service->resolve($service->book(8))['status'] === 'missing', 'No matches recorded');
     $responses = [['status'=>503,'body'=>'busy']];
     check($service->resolve($service->book(9))['status'] === 'deferred', 'Transient OL failure deferred');
+    if (function_exists('imagecreatetruecolor')) {
+        $before = count($calls);
+        $uploaded = $service->uploadCover($service->book(7), $art);
+        check(str_contains($uploaded['url'], '/upload-7-'), 'Uploaded artwork has a persistent override path');
+        check($service->resolve($service->book(7))['url'] === $uploaded['url'], 'Upload takes priority over Open Library');
+        check($service->thumbnail(7, $portrait) === $uploaded['url'], 'Imports cannot overwrite an uploaded cover');
+        check(count($calls) === $before, 'Uploaded covers need no remote lookup');
+        $rejected = false;
+        try {
+            $service->uploadCover($service->book(7), '<script>invalid image</script>');
+        } catch (RuntimeException $e) {
+            $rejected = true;
+        }
+        check($rejected, 'Non-images must be rejected');
+        check($service->resolve($service->book(7))['url'] === $uploaded['url'], 'Invalid upload preserves existing artwork');
+        $replacement = $service->uploadCover($service->book(7), $portrait);
+        check($replacement['url'] !== $uploaded['url'], 'New upload uses a fresh URL to avoid stale browser caches');
+        check(!file_exists($root . $uploaded['url']), 'Superseded uploaded thumbnail is cleaned up');
+        $pdo->exec("UPDATE book SET title='Edited book title' WHERE id=7");
+        check($service->resolve($service->book(7))['url'] === $replacement['url'], 'Book edits preserve the uploaded cover');
+    }
+    $responses = [['status'=>0,'body'=>'','errno'=>CURLE_OPERATION_TIMEDOUT]];
+    $timedOut = $service->resolve($service->book(13));
+    check(str_contains($timedOut['message'], 'Open Library timed out'), 'Timeout names Open Library');
+    $before = count($calls);
+    check($service->resolve($service->book(13))['message'] === $timedOut['message'], 'Cached deferral retains its failure reason');
+    check(count($calls) === $before, 'Displaying cached failure does not perform another request');
+    $responses = [['status'=>503,'body'=>'busy']];
+    check(str_contains($service->resolve($service->book(14))['message'], 'Open Library could not provide cover metadata (HTTP 503)'), 'HTTP failures name source and resource');
+    $responses = [['status'=>429,'body'=>'busy']];
+    check(str_contains($service->resolve($service->book(15))['message'], 'Open Library rate limit'), 'Rate limits named');
+    $responses = [['status'=>200,'body'=>'invalid']];
+    check(str_contains($service->resolve($service->book(16))['message'], 'Open Library returned invalid'), 'Invalid JSON named');
+    $pdo->exec('UPDATE book SET sourceId=1 WHERE id IN (17,18)');
+    $service = new CoverService($pdo, $root, 'http://plex.test:32400', 'private-token', $transport);
+    $responses = [['status'=>401,'body'=>'unauthorized']];
+    check(str_contains($service->resolve($service->book(17))['message'], 'Plex rejected access'), 'Plex access rejection named');
+    check(str_contains($service->resolve($service->book(18))['message'], 'Plex availability check failed earlier'), 'Skipped Plex requests explain why');
+    if (function_exists('imagecreatetruecolor')) {
+        $service = new CoverService($pdo, $root, 'http://plex.test:32400', 'private-token', $transport);
+        $service->rememberPlex(18, '/library/metadata/456/thumb/789');
+        $responses = [['status'=>200,'body'=>'{}'], ['status'=>200,'body'=>'not an image']];
+        check(str_contains($service->resolve($service->book(18), true)['message'], 'Plex cover image was retrieved, but the source image is invalid'), 'Image processing errors are distinguished from unavailable servers');
+    }
     check($responses === [], 'All expected requests consumed');
-    echo "PASS: offline Plex deferral/retry, local cache reuse, thumbnail sizes/aspect ratios, safe legacy conversion, Open Library references, conservative matching, retry/invalidation.\n";
+    echo "PASS: offline Plex deferral/retry, local cache reuse, thumbnail sizes/aspect ratios, safe legacy conversion, Open Library references, conservative matching, retry/invalidation, validated uploads, source-specific failure reasons and cached messages.\n";
 } finally {
     foreach (glob($root . '/cache/covers/*') ?: [] as $file) unlink($file);
     foreach (glob($root . '/cache/*.jpg') ?: [] as $file) unlink($file);

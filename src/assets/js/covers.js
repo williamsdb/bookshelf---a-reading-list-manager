@@ -69,6 +69,8 @@
   };
 
   document.addEventListener('DOMContentLoaded', () => {
+    const coverPanel = document.getElementById('book-cover-panel');
+    if (coverPanel) window.bookshelfCovers.load([coverPanel]);
     const start = document.getElementById('cover-start');
     if (!start) return;
     const stop = document.getElementById('cover-stop');
@@ -81,7 +83,7 @@
     try { state = JSON.parse(sessionStorage.getItem(storageKey)) || state; } catch (_) {}
     const save = () => { try { sessionStorage.setItem(storageKey, JSON.stringify(state)); } catch (_) {} };
     function summary() {
-      return Object.entries(state.counts).map(([key, value]) => value + ' ' + ({ ready: 'available', deferred: 'deferred', missing: 'not found', review: 'need checking' }[key] || key)).join(', ');
+      return Object.entries(state.counts).map(([key, value]) => value + ' ' + ({ ready: 'available', deferred: 'deferred', missing: 'not found', review: 'need cover details' }[key] || key)).join(', ');
     }
     if (state.cursor && !state.complete) {
       start.textContent = 'Resume catch-up';
@@ -124,7 +126,7 @@
           link.href = '/viewDetails/' + result.cursor;
           link.textContent = result.title;
           item.appendChild(link);
-          item.appendChild(document.createTextNode(' — ' + ({ ready: 'cover available', deferred: result.plexUnavailable ? 'Plex unavailable—cover deferred' : 'temporarily unavailable—deferred', missing: 'no cover found', review: 'no unique match—check book details' }[result.status] || result.status)));
+          item.appendChild(document.createTextNode(' — ' + (result.message || { ready: 'cover available', deferred: 'Cover lookup deferred; retry catch-up for details.', missing: 'no cover found', review: 'no confident cover match—add an ISBN, Open Library link or upload a cover' }[result.status] || result.status)));
           log.prepend(item);
           while (log.children.length > 20) log.lastChild.remove();
           // Metadata lookups are deliberately paced, even on a fast connection.

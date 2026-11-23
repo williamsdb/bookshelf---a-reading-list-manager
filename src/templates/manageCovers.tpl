@@ -10,9 +10,16 @@
 <p id="cover-progress" class="mt-3" role="status" aria-live="polite">Ready to check your library.</p>
 <progress id="cover-progress-bar" max="100" value="0" style="width:100%" aria-label="Cover catch-up progress" hidden></progress>
 <ul id="cover-results" class="mt-3"></ul>
-<p>Books without a unique title-and-author match are left for checking. Add an ISBN or an Open Library book link in their details to improve the next lookup. Missing covers are checked again after a week; temporary failures are retried sooner.</p>
+<p>Books without a confident cover match are listed below. You can improve their identifying details or upload artwork from the book details page. Missing covers are checked again after a week; temporary failures are retried sooner.</p>
 {if $coverNeedsReview}
-<h2>Books to check</h2>
+<h2>Books needing cover details</h2>
+<p>Bookshelf could not find one confident title-and-author match for these books. No cover has been selected for you to approve. To help it find the right artwork:</p>
+<ol>
+<li>Open a book below and check its title and author.</li>
+<li>Add its ISBN or the correct Open Library work/edition link, or choose <strong>Upload a cover</strong> on the book details page.</li>
+<li>Click <strong>Save</strong>. For changed book details, run catch-up again to retry the lookup. An uploaded cover is available immediately after saving.</li>
+</ol>
+<p>For Plex audiobooks, match the album title and artist in Plex, or upload artwork yourself. Re-importing Plex metadata can also supply its artwork reference. Offline Plex covers are deferred separately and do not mean that your book details are wrong.</p>
 <ul>
 {foreach from=$coverNeedsReview item=coverBook}
 <li><a href="/viewDetails/{$coverBook.id}">{$coverBook.title|escape:'html'}</a> — {$coverBook.author|escape:'html'}</li>

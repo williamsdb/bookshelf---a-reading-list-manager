@@ -40,7 +40,17 @@
 
 <h1>View & edit book details</h1>
 
-<form role="form" action="/updateBook" method="post" id="bookDetailsForm">
+<form role="form" action="/updateBook" method="post" id="bookDetailsForm" enctype="multipart/form-data">
+    <input type="hidden" name="coverToken" value="{$coverToken|escape:'html'}" />
+    <div class="d-flex align-items-start gap-3 mb-4" id="book-cover-panel">
+        <img src="/assets/brand/no-cover.png.jpg" data-cover-id="{$book.id}" data-book-id="{$book.id}"
+             width="100" height="150" style="object-fit:contain" alt="Current book cover" class="book-cover-lazy" />
+        <div>
+            <label for="coverUpload" class="form-label"><strong>Upload a cover</strong></label>
+            <input type="file" class="form-control" id="coverUpload" name="coverUpload" accept="image/jpeg,image/png,image/webp" aria-describedby="cover-upload-help" />
+            <div id="cover-upload-help" class="form-text">Choose a JPEG, PNG or WebP image up to 5 MB and 16 megapixels, then click Save below. Only a small thumbnail is stored. Your uploaded cover takes priority over automatic matches and imports.</div>
+        </div>
+    </div>
     <table class="table table-striped">
         <tbody>
             <tr><td width="15%"><strong>Title<sup>*</sup></strong></td><td align="left"><input type="text" class="form-control" id="titleInput" name="titleInput" value="{$book.title}" required /></td></tr>

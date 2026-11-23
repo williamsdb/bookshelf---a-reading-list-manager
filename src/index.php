@@ -1509,6 +1509,22 @@ switch ($cmd) {
             $pdo->beginTransaction();
 
 
+            $coverBytes = null;
+            $upload = $_FILES['coverUpload'] ?? null;
+            if ($upload && ($upload['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE) {
+                if (!hash_equals($_SESSION['coverToken'], (string)($_POST['coverToken'] ?? ''))) {
+                    throw new RuntimeException('Please reload the page before uploading a cover.');
+                }
+                if (($upload['error'] ?? -1) !== UPLOAD_ERR_OK) {
+                    throw new RuntimeException('Cover upload failed. Choose an image up to 5 MB (or your server upload limit).');
+                }
+                if (($upload['size'] ?? 0) > 5 * 1024 * 1024 || !is_uploaded_file($upload['tmp_name'] ?? '')) {
+                    throw new RuntimeException('Choose a JPEG, PNG or WebP image up to 5 MB.');
+                }
+                $coverBytes = file_get_contents($upload['tmp_name'], false, null, 0, 5 * 1024 * 1024 + 1);
+                if ($coverBytes === false) throw new RuntimeException('Unable to read the uploaded cover.');
+            }
+
             // Validate the optional review before changing any book details.
             $pendingReview = $_POST['pendingReview'] ?? null;
             if ($pendingReview !== null) {
@@ -1619,6 +1635,9 @@ switch ($cmd) {
                 }
             }
 
+            if ($coverBytes !== null) {
+                $covers->uploadCover($covers->book((int)$id), $coverBytes);
+            }
             $pdo->commit();
 
             $_SESSION['error'] = 'Book updated successfully.';

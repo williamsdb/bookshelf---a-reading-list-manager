@@ -10,6 +10,7 @@ class CoverService
     private $transport;
     public bool $plexUnavailable = false;
     public bool $networkUsed = false;
+    private string $thumbnailError = '';
     public const PLACEHOLDER = '/assets/brand/no-cover.png.jpg';
 
     public function __construct(PDO $pdo, string $root, string $plexEndpoint = '', string $plexToken = '', ?callable $transport = null)
@@ -24,13 +25,18 @@ class CoverService
             url TEXT, plex_thumb TEXT, signature TEXT, retry_at INTEGER NOT NULL DEFAULT 0,
             FOREIGN KEY(book_id) REFERENCES book(id) ON DELETE CASCADE
         )');
+        $columns = $pdo->query('PRAGMA table_info(coverCache)')->fetchAll(PDO::FETCH_COLUMN, 1);
+        if (!in_array('message', $columns, true)) $pdo->exec('ALTER TABLE coverCache ADD COLUMN message TEXT');
     }
 
     public function rememberPlex(int $id, string $thumb): void
     {
         if (!preg_match('#^/library/metadata/\d+/thumb(?:/\d+)?$#', $thumb)) return;
         $stmt = $this->pdo->prepare('INSERT INTO coverCache(book_id, plex_thumb) VALUES (?, ?)
-            ON CONFLICT(book_id) DO UPDATE SET plex_thumb = excluded.plex_thumb');
+            ON CONFLICT(book_id) DO UPDATE SET
+            signature = CASE WHEN coverCache.plex_thumb IS NOT excluded.plex_thumb THEN NULL ELSE coverCache.signature END,
+            retry_at = CASE WHEN coverCache.plex_thumb IS NOT excluded.plex_thumb THEN 0 ELSE coverCache.retry_at END,
+            plex_thumb = excluded.plex_thumb');
         $stmt->execute([$id, $thumb]);
     }
 
@@ -54,14 +60,14 @@ class CoverService
         return $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
     }
 
-    private function result(array $book, string $status, ?string $url = null): array
+    private function result(array $book, string $status, ?string $url = null, ?string $message = null): array
     {
         $delay = $status === 'deferred' ? 300 : 7 * 86400;
-        $stmt = $this->pdo->prepare('INSERT INTO coverCache(book_id, status, url, signature, retry_at)
-            VALUES (?, ?, ?, ?, ?) ON CONFLICT(book_id) DO UPDATE SET
-            status = excluded.status, url = excluded.url, signature = excluded.signature, retry_at = excluded.retry_at');
-        $stmt->execute([(int)$book['id'], $status, $url, $this->signature($book), time() + $delay]);
-        return ['status' => $status, 'url' => $url ?: self::PLACEHOLDER];
+        $stmt = $this->pdo->prepare('INSERT INTO coverCache(book_id, status, url, signature, retry_at, message)
+            VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(book_id) DO UPDATE SET
+            status = excluded.status, url = excluded.url, signature = excluded.signature, retry_at = excluded.retry_at, message = excluded.message');
+        $stmt->execute([(int)$book['id'], $status, $url, $this->signature($book), time() + $delay, $message]);
+        return ['status' => $status, 'url' => $url ?: self::PLACEHOLDER, 'message' => $message];
     }
 
     private function request(string $url, bool $plex = false): array
@@ -91,17 +97,52 @@ class CoverService
             // Never log Plex URLs or tokens.
             error_log('Bookshelf cover lookup failed (' . ($plex ? 'Plex' : 'Open Library') . '): HTTP ' . $status . ', cURL ' . curl_errno($ch));
         }
-        return ['status' => $ok === false ? 0 : $status, 'body' => $body];
+        return ['status' => $ok === false ? 0 : $status, 'body' => $body, 'errno' => curl_errno($ch)];
+    }
+
+    private function deferred(array $book, string $source, string $resource, array $response): array
+    {
+        $status = (int)$response['status'];
+        if (($response['errno'] ?? 0) === CURLE_OPERATION_TIMEDOUT) {
+            $reason = $source . ' timed out while retrieving ' . $resource;
+        } elseif (($response['errno'] ?? 0) === CURLE_COULDNT_RESOLVE_HOST) {
+            $reason = 'DNS lookup failed for ' . $source . ' while retrieving ' . $resource;
+        } elseif ($status === 0) {
+            $reason = 'Could not retrieve ' . $resource . ' from ' . $source;
+        } elseif ($source === 'Plex' && in_array($status, [401, 403], true)) {
+            $reason = 'Plex rejected access to ' . $resource . ' (HTTP ' . $status . ')—check the Plex token';
+        } elseif ($status === 429) {
+            $reason = $source . ' rate limit reached while retrieving ' . $resource;
+        } else {
+            $reason = $source . ' could not provide ' . $resource . ' (HTTP ' . $status . ')';
+        }
+        return $this->result($book, 'deferred', null, $reason . '. Cover deferred; retry on the next run.');
     }
 
     /** Returns null on decode/write failure, leaving existing artwork intact. */
-    public function thumbnail(int $id, string $bytes): ?string
+    public function thumbnail(int $id, string $bytes, bool $uploaded = false): ?string
     {
-        if (!function_exists('imagecreatefromstring') || strlen($bytes) > 8 * 1024 * 1024) return null;
+        $this->thumbnailError = '';
+        // User-selected artwork takes precedence over future imports and automatic lookups.
+        if (!$uploaded && ($manual = $this->uploaded($id))) return $manual;
+        if (!function_exists('imagecreatefromstring')) {
+            $this->thumbnailError = 'PHP GD is unavailable, so Bookshelf cannot create a thumbnail';
+            return null;
+        }
+        if (strlen($bytes) > 8 * 1024 * 1024) {
+            $this->thumbnailError = 'the source image exceeds the 8 MB processing limit';
+            return null;
+        }
         $info = @getimagesizefromstring($bytes);
-        if (!$info || $info[0] < 2 || $info[1] < 2 || $info[0] * $info[1] > 16000000) return null;
+        if (!$info || $info[0] < 2 || $info[1] < 2 || $info[0] * $info[1] > 16000000) {
+            $this->thumbnailError = 'the source image is invalid or exceeds the 16 megapixel processing limit';
+            return null;
+        }
         $image = @imagecreatefromstring($bytes);
-        if (!$image) return null;
+        if (!$image) {
+            $this->thumbnailError = 'PHP could not decode the source image';
+            return null;
+        }
         $scale = min(100 / $info[0], 150 / $info[1], 1);
         $width = max(1, (int)round($info[0] * $scale));
         $height = max(1, (int)round($info[1] * $scale));
@@ -109,26 +150,64 @@ class CoverService
         imagefill($small, 0, 0, imagecolorallocate($small, 255, 255, 255));
         imagecopyresampled($small, $image, 0, 0, 0, 0, $width, $height, $info[0], $info[1]);
         $directory = $this->root . '/cache/covers';
-        if (!is_dir($directory) && !@mkdir($directory, 0755, true) && !is_dir($directory)) return null;
+        if (!is_dir($directory) && !@mkdir($directory, 0755, true) && !is_dir($directory)) {
+            $this->thumbnailError = 'Bookshelf could not create cache/covers—check folder write permissions';
+            return null;
+        }
         $webp = function_exists('imagewebp');
-        $relative = '/cache/covers/' . $id . ($webp ? '.webp' : '.jpg');
+        $name = $uploaded ? 'upload-' . $id . '-' . substr(hash('sha256', $bytes), 0, 12) : (string)$id;
+        $relative = '/cache/covers/' . $name . ($webp ? '.webp' : '.jpg');
         $temporary = tempnam($directory, 'cover-');
-        if ($temporary === false) return null;
+        if ($temporary === false) {
+            $this->thumbnailError = 'Bookshelf could not write to cache/covers—check folder write permissions';
+            return null;
+        }
         $ok = $webp ? imagewebp($small, $temporary, 72) : imagejpeg($small, $temporary, 75);
         unset($image, $small);
         if (!$ok || !filesize($temporary) || !@rename($temporary, $this->root . $relative)) {
             @unlink($temporary);
+            $this->thumbnailError = 'Bookshelf could not encode or save the thumbnail in cache/covers—check GD support, free space and folder write permissions';
             return null;
         }
         @chmod($this->root . $relative, 0644);
+        if ($uploaded) {
+            foreach (glob($directory . '/upload-' . $id . '-*') ?: [] as $old) {
+                if ($old !== $this->root . $relative) @unlink($old);
+            }
+        }
         // The legacy file is a regenerable cache, removed only after a successful conversion.
         $legacy = $this->root . '/cache/' . $id . '.jpg';
         if (is_file($legacy)) @unlink($legacy);
         return $relative;
     }
 
+    private function uploaded(int $id): ?string
+    {
+        foreach (glob($this->root . '/cache/covers/upload-' . $id . '-*') ?: [] as $file) {
+            if (is_file($file) && in_array(pathinfo($file, PATHINFO_EXTENSION), ['jpg', 'webp'], true)) {
+                return '/cache/covers/' . basename($file);
+            }
+        }
+        return null;
+    }
+
+    public function uploadCover(array $book, string $bytes): array
+    {
+        if (!function_exists('imagecreatefromstring')) throw new RuntimeException('Cover uploads require the PHP GD image extension.');
+        $info = @getimagesizefromstring($bytes);
+        if (strlen($bytes) > 5 * 1024 * 1024 || !$info
+            || !in_array($info[2], [IMAGETYPE_JPEG, IMAGETYPE_PNG, IMAGETYPE_WEBP], true)
+            || $info[0] < 2 || $info[1] < 2 || $info[0] * $info[1] > 16000000) {
+            throw new RuntimeException('Choose a JPEG, PNG or WebP image up to 5 MB and 16 megapixels.');
+        }
+        $url = $this->thumbnail((int)$book['id'], $bytes, true);
+        if (!$url) throw new RuntimeException('Unable to save the cover. Check that PHP can write to cache/covers.');
+        return $this->result($book, 'ready', $url);
+    }
+
     private function local(int $id): ?string
     {
+        if ($manual = $this->uploaded($id)) return $manual;
         foreach (['webp', 'jpg'] as $extension) {
             $url = '/cache/covers/' . $id . '.' . $extension;
             if (is_file($this->root . $url)) return $url;
@@ -158,25 +237,31 @@ class CoverService
             }
             if (($state['retry_at'] ?? 0) > time()
                 && !($retryDeferred && ($state['status'] ?? '') === 'deferred')) {
-                return ['status' => $state['status'], 'url' => self::PLACEHOLDER];
+                return ['status' => $state['status'], 'url' => self::PLACEHOLDER,
+                    'message' => $state['message'] ?? (($state['status'] ?? '') === 'deferred'
+                        ? (!empty($book['is_plex']) ? 'Plex' : 'Open Library') . ' cover lookup deferred. Retry catch-up to get the current failure reason.' : null)];
             }
         }
         $isPlex = !empty($book['is_plex']);
         if ($isPlex) {
-            if ($this->plexUnavailable || !$this->plexEndpoint || !$this->plexToken) {
+            if (!$this->plexEndpoint || !$this->plexToken) {
                 $this->plexUnavailable = true;
-                return $this->result($book, 'deferred');
+                return $this->result($book, 'deferred', null, 'Plex cover lookup is not configured—set the Plex server address and token, then retry.');
+            }
+            if ($this->plexUnavailable) {
+                return $this->result($book, 'deferred', null, 'Plex availability check failed earlier in this run. Cover lookup skipped; retry when Plex is available.');
             }
             $probe = $this->request($this->plexEndpoint . '/identity', true);
             if ($probe['status'] !== 200) {
                 $this->plexUnavailable = true;
-                return $this->result($book, 'deferred');
+                return $this->deferred($book, 'Plex', 'server availability information', $probe);
             }
             $thumb = $state['plex_thumb'] ?? '';
             if (!$thumb) {
                 $response = $this->request($this->plexEndpoint . '/hubs/search?' . http_build_query(['query' => $book['title'], 'limit' => 10]), true);
-                if ($response['status'] !== 200) return $this->result($book, 'deferred');
+                if ($response['status'] !== 200) return $this->deferred($book, 'Plex', 'cover metadata', $response);
                 $data = json_decode($response['body'], true);
+                if (!is_array($data)) return $this->result($book, 'deferred', null, 'Plex returned invalid cover metadata. Cover deferred; retry on the next run.');
                 $matches = [];
                 foreach ($data['MediaContainer']['Hub'] ?? [] as $hub) {
                     foreach ($hub['Metadata'] ?? [] as $item) {
@@ -191,9 +276,10 @@ class CoverService
             }
             if (!preg_match('#^/library/metadata/\d+/thumb(?:/\d+)?$#', $thumb)) return $this->result($book, 'review');
             $response = $this->request($this->plexEndpoint . $thumb, true);
-            if ($response['status'] !== 200) return $this->result($book, 'deferred');
+            if ($response['status'] !== 200) return $this->deferred($book, 'Plex', 'the cover image', $response);
             $local = $this->thumbnail($id, $response['body']);
-            return $this->result($book, $local ? 'ready' : 'deferred', $local);
+            return $this->result($book, $local ? 'ready' : 'deferred', $local,
+                $local ? null : 'Plex cover image was retrieved, but ' . $this->thumbnailError . '. Cover deferred; retry after correcting this.');
         }
 
         $url = $book['url'] ?? '';
@@ -210,9 +296,12 @@ class CoverService
             ]);
         }
         $response = $this->request($lookup);
-        if ($response['status'] !== 200) return $this->result($book, $response['status'] === 404 ? 'missing' : 'deferred');
+        if ($response['status'] !== 200) {
+            return $response['status'] === 404 ? $this->result($book, 'missing')
+                : $this->deferred($book, 'Open Library', 'cover metadata', $response);
+        }
         $data = json_decode($response['body'], true);
-        if (!is_array($data)) return $this->result($book, 'deferred');
+        if (!is_array($data)) return $this->result($book, 'deferred', null, 'Open Library returned invalid cover metadata. Cover deferred; retry on the next run.');
         $cover = null;
         if (isset($data['docs'])) {
             $matches = [];
