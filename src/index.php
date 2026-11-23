@@ -3270,7 +3270,7 @@ function fetchOpenLibraryJson(string $url, ?string &$error = null)
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_MAXREDIRS => 3,
-            CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
+            CURLOPT_IPRESOLVE => PHP_OS_FAMILY === 'Darwin' ? CURL_IPRESOLVE_V4 : CURL_IPRESOLVE_WHATEVER,
             CURLOPT_CONNECTTIMEOUT => 10,
             CURLOPT_TIMEOUT => 20,
             CURLOPT_USERAGENT => 'BookshelfApp/1.0',

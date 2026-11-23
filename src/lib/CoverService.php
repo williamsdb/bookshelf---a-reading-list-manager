@@ -86,7 +86,7 @@ class CoverService
         if ($plex) $headers[] = 'X-Plex-Token: ' . $this->plexToken;
         $body = '';
         curl_setopt_array($ch, [
-            CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
+            CURLOPT_IPRESOLVE => PHP_OS_FAMILY === 'Darwin' ? CURL_IPRESOLVE_V4 : CURL_IPRESOLVE_WHATEVER,
             CURLOPT_FOLLOWLOCATION => !$plex, CURLOPT_MAXREDIRS => 3,
             CURLOPT_REDIR_PROTOCOLS => CURLPROTO_HTTPS,
             CURLOPT_CONNECTTIMEOUT => $plex ? 2 : 10, CURLOPT_TIMEOUT => $plex ? 6 : 20,
@@ -131,6 +131,7 @@ class CoverService
         $timing = static fn ($name) => isset($response[$name]) ? round((float)$response[$name], 3) : null;
         $this->diagnostics[] = [
             'time_utc' => gmdate('Y-m-d H:i:s'), 'operation' => $operation,
+            'ip_resolution' => PHP_OS_FAMILY === 'Darwin' ? 'IPv4 only (macOS workaround)' : 'IPv4/IPv6 automatic',
             'http_status' => (int)$response['status'], 'curl_code' => $errno,
             'curl_reason' => $errno ? curl_strerror($errno) : null,
             'elapsed_seconds' => $timing('elapsed'), 'dns_seconds' => $timing('dns'),
