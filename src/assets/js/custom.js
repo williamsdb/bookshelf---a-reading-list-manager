@@ -155,18 +155,7 @@ $(document).ready(function () {
       // Load cover images only for the rows visible on the current page
       var api = this.api();
       var nodes = api.rows({ page: "current" }).nodes();
-      $(nodes)
-        .find("img.book-cover-lazy[data-src]")
-        .each(function () {
-          var $img = $(this);
-          var src = $img.attr("data-src");
-          $img
-            .removeAttr("data-src")
-            .on("error", function () {
-              $(this).off("error").attr("src", "/assets/brand/no-cover.png");
-            })
-            .attr("src", src);
-        });
+      if (window.bookshelfCovers) window.bookshelfCovers.load(nodes.toArray());
     },
   });
 

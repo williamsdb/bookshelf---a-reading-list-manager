@@ -137,6 +137,7 @@
 					</a>
 					<ul class="dropdown-menu" aria-labelledby="navbarDropdown">
 						<li><a class="dropdown-item" href="/manageLists">Manage Lists</a></li>
+                        <li><a class="dropdown-item" href="/manageCovers">Find missing covers</a></li>
 					</ul>
 				</li>
 			</ul>

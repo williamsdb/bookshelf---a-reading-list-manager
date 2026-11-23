@@ -99,13 +99,9 @@
       <tr>
           <td>
             <div class="d-flex align-items-start">
-              {if $books[all].source == "Plex" ||  $books[all].source == "Calibre"}
-                  <img data-src="/cache/{$books[all].id}.jpg" src="/assets/brand/no-cover.png" width="40" alt="Cover" class="book-cover-small book-cover-lazy me-2 flex-shrink-0" />
-              {else}
-                {if $books[all].isbn}
-                  <img data-src="https://covers.openlibrary.org/b/isbn/{$books[all].isbn}-S.jpg" src="/assets/brand/no-cover.png" alt="Cover" class="book-cover-small book-cover-lazy me-2 flex-shrink-0" />
-                {/if}
-              {/if}
+              <img {if $books[all].coverUrl}data-src="{$books[all].coverUrl|escape:'html'}"{else}data-cover-id="{$books[all].id}"{/if}
+                   data-book-id="{$books[all].id}" src="/assets/brand/no-cover.png.jpg" width="40" height="60"
+                   style="object-fit:contain" alt="Cover" class="book-cover-small book-cover-lazy me-2 flex-shrink-0" />
 
               <div class="flex-grow-1 text-break">
                 <a href="/viewDetails/{$books[all].id}">

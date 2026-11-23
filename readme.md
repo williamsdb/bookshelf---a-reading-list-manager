@@ -113,6 +113,18 @@ _For more information, please refer to the [these blog posts](https://www.spoken
 
 <!-- ROADMAP -->
 
+### Book covers
+
+The book list loads covers for visible rows without waiting for external lookups during page rendering. Plex and Calibre artwork is stored as thumbnails fitting within 100 × 150 pixels, preserving square audiobook covers. PHP GD is required for resizing; WebP is used when supported, otherwise JPEG. The `src/cache` directory must be writable by PHP.
+
+Use **Admin → Find missing covers → Start catch-up** to process the existing library. You can pause and resume, including after reloading the same browser tab. Completed cover references and thumbnails are stored in SQLite and the cache, so another run reuses them. Temporary failures are deferred; missing or ambiguous matches are retried after a week. Editing a book's title, author, ISBN or link allows an earlier new lookup. Ambiguous matches are listed for checking rather than selecting an arbitrary edition.
+
+Plex artwork already cached locally remains available while Plex is offline. Unavailable Plex covers are skipped for the rest of a run and retried on the next run. Re-importing Plex metadata also records its artwork reference for later retrieval. Successful conversion replaces the old full-size cache file; unsuccessful conversion preserves it.
+
+Open Library images are displayed directly from its Covers API; only metadata references are stored locally. Lookups use an Open Library book/work link or ISBN, then an exact title-and-author match for books without either identifier. Metadata requests are paced and do not bulk-download Open Library images.
+
+Run the cover regression checks with `php tests/CoverServiceTest.php`.
+
 ## Known Issues
 
 - None

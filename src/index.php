@@ -392,8 +392,73 @@ try {
     die("Error: " . $e->getMessage());
 }
 
+require_once __DIR__ . '/lib/CoverService.php';
+$covers = new CoverService($pdo, __DIR__, $plexEndpoint ?? '', $plexToken ?? '');
+if (empty($_SESSION['coverToken'])) $_SESSION['coverToken'] = bin2hex(random_bytes(24));
+$smarty->assign('coverToken', $_SESSION['coverToken']);
+
 // execute command
 switch ($cmd) {
+
+    case 'manageCovers':
+        $smarty->assign('coverGdAvailable', function_exists('imagecreatefromstring'));
+        $smarty->assign('coverNeedsReview', $pdo->query('SELECT b.id, b.title, b.author FROM book b
+            JOIN coverCache c ON c.book_id = b.id WHERE c.status = "review" ORDER BY b.author, b.title')->fetchAll(PDO::FETCH_ASSOC));
+        $smarty->display('manageCovers.tpl');
+        break;
+
+    case 'coverResolve':
+    case 'coverBatch':
+    case 'coverFailed':
+        header('Content-Type: application/json');
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST'
+            || !hash_equals($_SESSION['coverToken'], (string)($_POST['token'] ?? ''))) {
+            http_response_code(403);
+            echo json_encode(['error' => 'Please reload the page and try again.']);
+            exit;
+        }
+        session_write_close();
+        try {
+            if ($cmd === 'coverBatch') {
+                $cursor = max(0, (int)($_POST['cursor'] ?? 0));
+                $next = $pdo->prepare('SELECT id FROM book WHERE id > ? ORDER BY id LIMIT 1');
+                $next->execute([$cursor]);
+                $nextId = $next->fetchColumn();
+                if (!$nextId) {
+                    echo json_encode(['done' => true]);
+                    exit;
+                }
+                $covers->plexUnavailable = ($_POST['plexUnavailable'] ?? '') === '1';
+                $book = $covers->book((int)$nextId);
+                $result = $covers->resolve($book, true);
+                $remaining = $pdo->prepare('SELECT COUNT(*) FROM book WHERE id > ?');
+                $remaining->execute([$nextId]);
+                echo json_encode($result + ['done' => false, 'cursor' => (int)$nextId,
+                    'title' => $book['title'], 'remaining' => (int)$remaining->fetchColumn(),
+                    'plexUnavailable' => $covers->plexUnavailable, 'lookedUp' => $covers->networkUsed]);
+            } else {
+                $book = $covers->book((int)($_POST['id'] ?? 0));
+                if (!$book) {
+                    http_response_code(404);
+                    echo json_encode(['error' => 'Book not found.']);
+                    exit;
+                }
+                if ($cmd === 'coverFailed') {
+                    $failed = $pdo->prepare('UPDATE coverCache SET status = "missing", url = NULL, retry_at = ? WHERE book_id = ?');
+                    $failed->execute([time() + 7 * 86400, $book['id']]);
+                    echo json_encode(['status' => 'missing']);
+                } else {
+                    $covers->plexUnavailable = ($_POST['plexUnavailable'] ?? '') === '1';
+                    echo json_encode($covers->resolve($book) + ['lookedUp' => $covers->networkUsed, 'plexUnavailable' => $covers->plexUnavailable]);
+                }
+            }
+        } catch (Throwable $e) {
+            error_log('Bookshelf cover processing failed: ' . get_class($e) . ': ' . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['error' => 'Unable to process covers. Check the PHP error log and cache directory permissions.']);
+        }
+        exit;
+
 
     case 'db':
 
@@ -794,7 +859,7 @@ switch ($cmd) {
                             if (isset($coverImage)) {
                                 $image = file_get_contents($coverImage);
                                 if ($image) {
-                                    file_put_contents('./cache/' . $bookId . '.jpg', $image);
+                                    $covers->thumbnail((int)$bookId, $image);
                                 }
                             }
                         }
@@ -902,6 +967,12 @@ switch ($cmd) {
         }
         $stmt->execute();
         $books = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $coverRows = $pdo->query('SELECT book_id, status, url, signature FROM coverCache')->fetchAll(PDO::FETCH_UNIQUE | PDO::FETCH_ASSOC);
+        foreach ($books as &$listedBook) {
+            $coverState = $coverRows[$listedBook['id']] ?? [];
+            $listedBook['coverUrl'] = $covers->cachedUrl($listedBook, $coverState);
+        }
+        unset($listedBook);
 
         // Get all lists
         $listStmt = $pdo->prepare("SELECT id, name, `default` FROM list ORDER BY name ASC");
@@ -2739,7 +2810,7 @@ switch ($cmd) {
                     if (isset($item->title)) $title = $item->title;
                     if (isset($item->parentTitle)) $authors = $item->parentTitle;
                     if (isset($item->studio)) $publisher = $item->studio;
-                    if (isset($item->thumb)) $thumb = $item->thumb;
+                    $thumb = $item->thumb ?? '';
 
                     // Gather genres
                     if (isset($item->Genre)) {
@@ -2825,25 +2896,8 @@ switch ($cmd) {
                             ':sourceId' => $sourceId
                         ]);
 
-                        // have we got an image?
-                        if (empty($thumb)) {
-                            $thumb = 'nocoverart.jpeg';
-                        } else {
-                            // check to see if the image file is already cached
-                            if (file_exists('./cache/' . $bookId . '.jpg')) {
-                                // do nothing
-                            } else {
-                                if ($image = file_get_contents($plexEndpoint . $thumb . "?X-Plex-Token=$plexToken")) {
-                                    try {
-                                        file_put_contents('./cache/' . $bookId . '.jpg', $image);
-                                    } catch (\Throwable $th) {
-                                        //throw $th;
-                                    }
-                                } else {
-                                    $thumb = 'nocoverart.jpeg';
-                                }
-                            }
-                        }
+                        if (!empty($thumb)) $covers->rememberPlex((int)$bookId, $thumb);
+                        // Fetch and resize lazily; importing metadata never needs the artwork request.
                     } else {
                         $stmtSource = $pdo->prepare("SELECT COUNT(*) FROM `bookSource` WHERE `book` = (SELECT id FROM `book` WHERE `author` = :author AND `title` = :title AND `formatId` = :formatId) AND `source` = :sourceId");
                         $stmtSource->execute([
@@ -2853,6 +2907,11 @@ switch ($cmd) {
                             ':sourceId' => $sourceId
                         ]);
                         $sourceExists = $stmtSource->fetchColumn();
+                        if (!empty($thumb)) {
+                            $coverBook = $pdo->prepare('SELECT id FROM book WHERE author = ? AND title = ? AND formatId = ? LIMIT 1');
+                            $coverBook->execute([$authors, $title, $formatId]);
+                            if ($coverBookId = $coverBook->fetchColumn()) $covers->rememberPlex((int)$coverBookId, $thumb);
+                        }
 
                         if (!$sourceExists) {
                             // Get the book id
