@@ -334,15 +334,29 @@ $(document).ready(function () {
 
   $("#book-search-form").on("submit", function (e) {
     e.preventDefault();
+    const form = this;
+    if (form.getAttribute("aria-busy") === "true") return;
     const query = $("#book-title").val();
+    const button = form.querySelector('button[type="submit"]');
+    const status = document.getElementById("catalogue-search-status");
+    const spinner = document.getElementById("catalogue-search-spinner");
+    const message = document.getElementById("catalogue-search-message");
+    form.setAttribute("aria-busy", "true");
+    button.disabled = true;
+    button.textContent = "Searching…";
+    status.hidden = false;
+    spinner.hidden = false;
+    message.textContent = "Searching Open Library. This may take a little while…";
+    $("#search-table").attr("aria-busy", "true");
 
     $.ajax({
       url: `https://openlibrary.org/search.json`,
       method: "GET",
       data: { title: query },
+      timeout: 30000,
       success: function (data) {
+        oblTable.clear();
         if (data.numFound > 0) {
-          oblTable.clear();
           data.docs.forEach((book) => {
             const title = book.title || "Unknown Title";
             const author = book.author_name
@@ -355,13 +369,23 @@ $(document).ready(function () {
               `<a href="${link}" target="_blank">Link</a>`,
             ]);
           });
-          oblTable.draw();
+          message.textContent = "Search complete. Showing " + data.docs.length + " results.";
         } else {
-          alert("No results found.");
+          message.textContent = "No results found. Try another title.";
         }
+        oblTable.draw();
       },
-      error: function () {
-        alert("An error occurred while fetching data.");
+      error: function (xhr, textStatus) {
+        message.textContent = textStatus === "timeout"
+          ? "Open Library is taking too long to respond. Please try again."
+          : "Unable to search Open Library. Please try again.";
+      },
+      complete: function () {
+        form.setAttribute("aria-busy", "false");
+        $("#search-table").attr("aria-busy", "false");
+        spinner.hidden = true;
+        button.disabled = false;
+        button.textContent = "Search";
       },
     });
   });

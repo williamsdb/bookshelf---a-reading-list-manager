@@ -2565,9 +2565,10 @@ switch ($cmd) {
 
         $url = "https://openlibrary.org/works/$workId.json";
 
-        $response = fetchOpenLibraryJson($url);
+        $fetchError = null;
+        $response = fetchOpenLibraryJson($url, $fetchError);
         if ($response === FALSE) {
-            $_SESSION['error'] = 'Unable to fetch data from Open Library API';
+            $_SESSION['error'] = 'Unable to fetch data from Open Library API. ' . $fetchError;
             header('Location: /');
             exit;
         }
@@ -3174,23 +3175,51 @@ function createBookReview(PDO $pdo, int $bookId, $dateRead, $rating, $review): v
 }
 
 // Avoid macOS NAT64 DNS resolution crashes in forked MAMP PHP workers.
-function fetchOpenLibraryJson(string $url)
+function fetchOpenLibraryJson(string $url, ?string &$error = null)
 {
-    $ch = curl_init($url);
-    curl_setopt_array($ch, [
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
-        CURLOPT_CONNECTTIMEOUT => 5,
-        CURLOPT_TIMEOUT => 15,
-        CURLOPT_USERAGENT => 'BookshelfApp/1.0',
-    ]);
-    $response = curl_exec($ch);
-    $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    if ($response === false || $status !== 200) {
-        error_log('Open Library request failed: ' . $url . ' HTTP ' . $status . ' ' . curl_error($ch));
-        return false;
+    $error = null;
+    for ($attempt = 1; $attempt <= 2; $attempt++) {
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_MAXREDIRS => 3,
+            CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
+            CURLOPT_CONNECTTIMEOUT => 10,
+            CURLOPT_TIMEOUT => 20,
+            CURLOPT_USERAGENT => 'BookshelfApp/1.0',
+            CURLOPT_HTTPHEADER => ['Accept: application/json'],
+        ]);
+        $response = curl_exec($ch);
+        $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $errno = curl_errno($ch);
+        $detail = curl_error($ch);
+        if ($response !== false && $status === 200) {
+            $data = json_decode($response, true);
+            if (is_array($data) && !isset($data['error'])) {
+                return $response;
+            }
+            $error = 'Open Library returned an invalid response. Please try again later.';
+        } elseif ($errno === CURLE_OPERATION_TIMEDOUT) {
+            $error = 'The connection to Open Library timed out. Please try again.';
+        } elseif ($status === 404) {
+            $error = 'This work could not be found on Open Library.';
+        } elseif ($status > 0) {
+            $error = 'Open Library returned HTTP ' . $status . '. Please try again later.';
+        } else {
+            $error = 'The server could not connect to Open Library. Please check the server error log.';
+        }
+        error_log('Open Library request failed: ' . $url . ' attempt ' . $attempt
+            . ' HTTP ' . $status . ' cURL ' . $errno . ' ' . $detail . ' ' . $error);
+
+        // Retry transient transport/server failures once, without delaying rate-limited requests.
+        if (!(in_array($errno, [CURLE_COULDNT_RESOLVE_HOST, CURLE_COULDNT_CONNECT,
+                CURLE_OPERATION_TIMEDOUT, CURLE_GOT_NOTHING, CURLE_RECV_ERROR], true)
+            || in_array($status, [500, 502, 503, 504], true))) {
+            break;
+        }
     }
-    return $response;
+    return false;
 }
 
 // SQLite INTEGER-affinity columns in existing databases also preserve REAL values.
