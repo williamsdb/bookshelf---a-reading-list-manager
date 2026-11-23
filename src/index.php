@@ -404,6 +404,14 @@ switch ($cmd) {
         $smarty->assign('coverGdAvailable', function_exists('imagecreatefromstring'));
         $smarty->assign('coverNeedsReview', $pdo->query('SELECT b.id, b.title, b.author FROM book b
             JOIN coverCache c ON c.book_id = b.id WHERE c.status = "review" ORDER BY b.author, b.title')->fetchAll(PDO::FETCH_ASSOC));
+        $coverFailures = $pdo->query('SELECT b.id, b.title, c.message, c.diagnostics FROM coverCache c
+            JOIN book b ON b.id = c.book_id WHERE c.status = "deferred" AND c.diagnostics IS NOT NULL AND c.diagnostics <> "[]"
+            ORDER BY c.retry_at DESC LIMIT 20')->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($coverFailures as &$failure) {
+            $failure['diagnostics'] = json_encode(json_decode($failure['diagnostics'], true), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        }
+        unset($failure);
+        $smarty->assign('coverFailures', $coverFailures);
         $smarty->display('manageCovers.tpl');
         break;
 

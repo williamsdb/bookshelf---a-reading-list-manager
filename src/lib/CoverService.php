@@ -11,6 +11,7 @@ class CoverService
     public bool $plexUnavailable = false;
     public bool $networkUsed = false;
     private string $thumbnailError = '';
+    private array $diagnostics = [];
     public const PLACEHOLDER = '/assets/brand/no-cover.png.jpg';
 
     public function __construct(PDO $pdo, string $root, string $plexEndpoint = '', string $plexToken = '', ?callable $transport = null)
@@ -26,7 +27,9 @@ class CoverService
             FOREIGN KEY(book_id) REFERENCES book(id) ON DELETE CASCADE
         )');
         $columns = $pdo->query('PRAGMA table_info(coverCache)')->fetchAll(PDO::FETCH_COLUMN, 1);
-        if (!in_array('message', $columns, true)) $pdo->exec('ALTER TABLE coverCache ADD COLUMN message TEXT');
+        foreach (['message', 'diagnostics'] as $column) {
+            if (!in_array($column, $columns, true)) $pdo->exec('ALTER TABLE coverCache ADD COLUMN ' . $column . ' TEXT');
+        }
     }
 
     public function rememberPlex(int $id, string $thumb): void
@@ -63,17 +66,21 @@ class CoverService
     private function result(array $book, string $status, ?string $url = null, ?string $message = null): array
     {
         $delay = $status === 'deferred' ? 300 : 7 * 86400;
-        $stmt = $this->pdo->prepare('INSERT INTO coverCache(book_id, status, url, signature, retry_at, message)
-            VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(book_id) DO UPDATE SET
-            status = excluded.status, url = excluded.url, signature = excluded.signature, retry_at = excluded.retry_at, message = excluded.message');
-        $stmt->execute([(int)$book['id'], $status, $url, $this->signature($book), time() + $delay, $message]);
-        return ['status' => $status, 'url' => $url ?: self::PLACEHOLDER, 'message' => $message];
+        $stmt = $this->pdo->prepare('INSERT INTO coverCache(book_id, status, url, signature, retry_at, message, diagnostics)
+            VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(book_id) DO UPDATE SET
+            status = excluded.status, url = excluded.url, signature = excluded.signature, retry_at = excluded.retry_at, message = excluded.message, diagnostics = excluded.diagnostics');
+        $stmt->execute([(int)$book['id'], $status, $url, $this->signature($book), time() + $delay, $message, json_encode($this->diagnostics)]);
+        return ['status' => $status, 'url' => $url ?: self::PLACEHOLDER, 'message' => $message, 'cached' => false, 'diagnostics' => $this->diagnostics];
     }
 
     private function request(string $url, bool $plex = false): array
     {
         $this->networkUsed = true;
-        if ($this->transport) return ($this->transport)($url, $plex);
+        if ($this->transport) {
+            $response = ($this->transport)($url, $plex);
+            $this->recordDiagnostics($url, $plex, $response);
+            return $response;
+        }
         $ch = curl_init($url);
         $headers = ['Accept: application/json'];
         if ($plex) $headers[] = 'X-Plex-Token: ' . $this->plexToken;
@@ -82,7 +89,7 @@ class CoverService
             CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
             CURLOPT_FOLLOWLOCATION => !$plex, CURLOPT_MAXREDIRS => 3,
             CURLOPT_REDIR_PROTOCOLS => CURLPROTO_HTTPS,
-            CURLOPT_CONNECTTIMEOUT => 2, CURLOPT_TIMEOUT => 6,
+            CURLOPT_CONNECTTIMEOUT => $plex ? 2 : 10, CURLOPT_TIMEOUT => $plex ? 6 : 20,
             CURLOPT_USERAGENT => 'BookshelfApp/1.0', CURLOPT_HTTPHEADER => $headers,
             // Cap downloads before decoding artwork or JSON.
             CURLOPT_WRITEFUNCTION => static function ($ch, $chunk) use (&$body) {
@@ -91,20 +98,54 @@ class CoverService
                 return strlen($chunk);
             },
         ]);
+        $started = hrtime(true);
         $ok = curl_exec($ch);
+        $elapsed = (hrtime(true) - $started) / 1e9;
         $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
         if ($ok === false || $status !== 200) {
             // Never log Plex URLs or tokens.
-            error_log('Bookshelf cover lookup failed (' . ($plex ? 'Plex' : 'Open Library') . '): HTTP ' . $status . ', cURL ' . curl_errno($ch));
+            error_log('Bookshelf cover lookup failed (' . ($plex ? 'Plex' : 'Open Library') . '): HTTP ' . $status . ', cURL ' . curl_errno($ch) . ', elapsed ' . number_format($elapsed, 3)
+                . 's, DNS ' . curl_getinfo($ch, CURLINFO_NAMELOOKUP_TIME)
+                . 's, connection ' . curl_getinfo($ch, CURLINFO_CONNECT_TIME) . 's');
         }
-        return ['status' => $ok === false ? 0 : $status, 'body' => $body, 'errno' => curl_errno($ch)];
+        $response = ['status' => $ok === false ? 0 : $status, 'body' => $body,
+            'errno' => curl_errno($ch), 'elapsed' => $elapsed,
+            'dns' => curl_getinfo($ch, CURLINFO_NAMELOOKUP_TIME),
+            'connect' => curl_getinfo($ch, CURLINFO_CONNECT_TIME),
+            'tls' => curl_getinfo($ch, CURLINFO_APPCONNECT_TIME)];
+        $this->recordDiagnostics($url, $plex, $response);
+        return $response;
+    }
+
+    private function recordDiagnostics(string $url, bool $plex, array $response): void
+    {
+        $path = parse_url($url, PHP_URL_PATH) ?: '';
+        if ($plex) {
+            $operation = $path === '/identity' ? 'Plex availability check'
+                : (str_contains($path, '/thumb') ? 'Plex cover image download' : 'Plex title/author search');
+        } else {
+            $operation = $path === '/search.json' ? 'Open Library title/author search'
+                : (str_starts_with($path, '/isbn/') ? 'Open Library ISBN lookup' : 'Open Library work/edition lookup');
+        }
+        $errno = (int)($response['errno'] ?? 0);
+        $timing = static fn ($name) => isset($response[$name]) ? round((float)$response[$name], 3) : null;
+        $this->diagnostics[] = [
+            'time_utc' => gmdate('Y-m-d H:i:s'), 'operation' => $operation,
+            'http_status' => (int)$response['status'], 'curl_code' => $errno,
+            'curl_reason' => $errno ? curl_strerror($errno) : null,
+            'elapsed_seconds' => $timing('elapsed'), 'dns_seconds' => $timing('dns'),
+            'connection_seconds' => $timing('connect'), 'tls_seconds' => $timing('tls'),
+            'connection_limit_seconds' => $plex ? 2 : 10,
+            'overall_limit_seconds' => $plex ? 6 : 20,
+        ];
     }
 
     private function deferred(array $book, string $source, string $resource, array $response): array
     {
         $status = (int)$response['status'];
         if (($response['errno'] ?? 0) === CURLE_OPERATION_TIMEDOUT) {
-            $reason = $source . ' timed out while retrieving ' . $resource;
+            $duration = isset($response['elapsed']) ? ' after ' . number_format($response['elapsed'], $response['elapsed'] < 0.1 ? 3 : 1) . ' seconds' : '';
+            $reason = $source . ' timed out' . $duration . ' while retrieving ' . $resource;
         } elseif (($response['errno'] ?? 0) === CURLE_COULDNT_RESOLVE_HOST) {
             $reason = 'DNS lookup failed for ' . $source . ' while retrieving ' . $resource;
         } elseif ($status === 0) {
@@ -228,6 +269,8 @@ class CoverService
 
     public function resolve(array $book, bool $retryDeferred = false): array
     {
+        $this->diagnostics = [];
+        $this->networkUsed = false;
         $id = (int)$book['id'];
         $state = $this->state($id);
         if ($local = $this->local($id)) return $this->result($book, 'ready', $local);
@@ -237,9 +280,11 @@ class CoverService
             }
             if (($state['retry_at'] ?? 0) > time()
                 && !($retryDeferred && ($state['status'] ?? '') === 'deferred')) {
-                return ['status' => $state['status'], 'url' => self::PLACEHOLDER,
-                    'message' => $state['message'] ?? (($state['status'] ?? '') === 'deferred'
-                        ? (!empty($book['is_plex']) ? 'Plex' : 'Open Library') . ' cover lookup deferred. Retry catch-up to get the current failure reason.' : null)];
+                $message = $state['message'] ?? (($state['status'] ?? '') === 'deferred'
+                    ? (!empty($book['is_plex']) ? 'Plex' : 'Open Library') . ' cover lookup deferred. Retry catch-up to get the current failure reason.' : null);
+                if ($state['status'] === 'deferred') $message = 'Previous attempt: ' . $message . ' No new request was made; this lookup is waiting for retry.';
+                return ['status' => $state['status'], 'url' => self::PLACEHOLDER, 'cached' => true, 'message' => $message,
+                    'diagnostics' => json_decode($state['diagnostics'] ?? '[]', true) ?: []];
             }
         }
         $isPlex = !empty($book['is_plex']);
@@ -286,10 +331,13 @@ class CoverService
         $host = strtolower(parse_url($url, PHP_URL_HOST) ?: '');
         if (in_array($host, ['openlibrary.org', 'www.openlibrary.org'], true)
             && preg_match('#/(works|books)/(OL\d+[WM])(?:/|$)#', parse_url($url, PHP_URL_PATH) ?: '', $match)) {
+            $lookupMethod = 'Open Library link lookup';
             $lookup = 'https://openlibrary.org/' . $match[1] . '/' . $match[2] . '.json';
-        } elseif ($isbn = preg_replace('/[^0-9X]/i', '', $book['isbn'] ?? '')) {
+        } elseif (preg_match('/^(?:[0-9]{9}[0-9X]|[0-9]{13})$/i', $isbn = preg_replace('/[\s-]/', '', $book['isbn'] ?? ''))) {
+            $lookupMethod = 'ISBN lookup';
             $lookup = 'https://openlibrary.org/isbn/' . rawurlencode($isbn) . '.json';
         } else {
+            $lookupMethod = 'title-and-author search (no Open Library link or usable ISBN)';
             $lookup = 'https://openlibrary.org/search.json?' . http_build_query([
                 'title' => $book['title'], 'author' => $book['author'], 'limit' => 5,
                 'fields' => 'key,title,author_name,cover_i',
@@ -298,7 +346,7 @@ class CoverService
         $response = $this->request($lookup);
         if ($response['status'] !== 200) {
             return $response['status'] === 404 ? $this->result($book, 'missing')
-                : $this->deferred($book, 'Open Library', 'cover metadata', $response);
+                : $this->deferred($book, 'Open Library', 'cover metadata via ' . $lookupMethod, $response);
         }
         $data = json_decode($response['body'], true);
         if (!is_array($data)) return $this->result($book, 'deferred', null, 'Open Library returned invalid cover metadata. Cover deferred; retry on the next run.');

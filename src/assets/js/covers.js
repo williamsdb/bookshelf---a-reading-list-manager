@@ -9,7 +9,7 @@
       method: 'POST',
       body: new URLSearchParams({ token, ...data }),
       headers: { Accept: 'application/json' },
-      signal: AbortSignal.timeout(25000),
+      signal: AbortSignal.timeout(35000),
     });
     const result = await response.json();
     if (!response.ok || result.error) throw new Error(result.error || 'Cover request failed.');
@@ -104,7 +104,7 @@
       let plexUnavailable = false;
       try {
         while (active) {
-          status.textContent = 'Checking covers… ' + state.processed + ' processed. ' + summary();
+          status.textContent = 'Checking covers… ' + state.processed + ' processed. ' + summary() + ' An Open Library lookup can take up to 20 seconds.';
           const result = await post('coverBatch', { cursor: state.cursor, plexUnavailable: plexUnavailable ? '1' : '0' });
           if (result.done) {
             state.complete = true;
@@ -127,6 +127,16 @@
           link.textContent = result.title;
           item.appendChild(link);
           item.appendChild(document.createTextNode(' — ' + (result.message || { ready: 'cover available', deferred: 'Cover lookup deferred; retry catch-up for details.', missing: 'no cover found', review: 'no confident cover match—add an ISBN, Open Library link or upload a cover' }[result.status] || result.status)));
+          if (result.diagnostics && result.diagnostics.length) {
+            const details = document.createElement('details');
+            const heading = document.createElement('summary');
+            heading.textContent = result.cached ? 'Previous lookup diagnostics (no new request)' : 'Lookup diagnostics';
+            const diagnosticText = document.createElement('pre');
+            diagnosticText.className = 'small mt-2 text-wrap';
+            diagnosticText.textContent = JSON.stringify(result.diagnostics, null, 2);
+            details.append(heading, diagnosticText);
+            item.appendChild(details);
+          }
           log.prepend(item);
           while (log.children.length > 20) log.lastChild.remove();
           // Metadata lookups are deliberately paced, even on a fast connection.

@@ -115,14 +115,33 @@ try {
         $pdo->exec("UPDATE book SET title='Edited book title' WHERE id=7");
         check($service->resolve($service->book(7))['url'] === $replacement['url'], 'Book edits preserve the uploaded cover');
     }
-    $responses = [['status'=>0,'body'=>'','errno'=>CURLE_OPERATION_TIMEDOUT]];
+    $pdo->exec("UPDATE book SET url='https://www.audible.co.uk/pd/example/B012345678', isbn='B012345678' WHERE id=13");
+    $responses = [['status'=>0,'body'=>'','errno'=>CURLE_OPERATION_TIMEDOUT,'elapsed'=>2.005]];
     $timedOut = $service->resolve($service->book(13));
     check(str_contains($timedOut['message'], 'Open Library timed out'), 'Timeout names Open Library');
+    check(count($timedOut['diagnostics']) === 1, 'Fresh request exposes diagnostic details');
+    check($timedOut['diagnostics'][0]['operation'] === 'Open Library title/author search'
+        && $timedOut['diagnostics'][0]['elapsed_seconds'] === 2.005
+        && $timedOut['diagnostics'][0]['curl_code'] === CURLE_OPERATION_TIMEDOUT,
+        'Diagnostics include actual duration, source, lookup type and error code');
+    check(!str_contains(json_encode($timedOut['diagnostics']), 'private-token')
+        && !str_contains(json_encode($timedOut['diagnostics']), 'http://'), 'Diagnostic details exclude private endpoints and tokens');
+
     $before = count($calls);
-    check($service->resolve($service->book(13))['message'] === $timedOut['message'], 'Cached deferral retains its failure reason');
+    check(str_contains(end($calls)[0], '/search.json?'), 'Audible ASIN must use title-and-author search, not an invalid ISBN lookup');
+    check(str_contains($timedOut['message'], 'after 2.0 seconds') && str_contains($timedOut['message'], 'title-and-author search'), 'Fresh timeout reports duration and lookup method');
+    $cachedTimeout = $service->resolve($service->book(13));
+    check($cachedTimeout['cached'] && str_contains($cachedTimeout['message'], $timedOut['message'])
+        && str_contains($cachedTimeout['message'], 'No new request was made'), 'Cached failure clearly distinguished from fresh request');
     check(count($calls) === $before, 'Displaying cached failure does not perform another request');
+    check($cachedTimeout['diagnostics'] === $timedOut['diagnostics'], 'Saved request diagnostics remain available on cached results');
+    $responses = [['status'=>0,'body'=>'','errno'=>CURLE_OPERATION_TIMEDOUT,'elapsed'=>20.003]];
+    $retried = $service->resolve($service->book(13), true);
+    check($retried['cached'] === false && count($calls) === $before + 1
+        && str_contains($retried['message'], 'after 20.0 seconds')
+        && !str_contains($retried['message'], 'Previous attempt:'), 'Catch-up retries deferred entries and reports the new attempt, not the saved failure');
     $responses = [['status'=>503,'body'=>'busy']];
-    check(str_contains($service->resolve($service->book(14))['message'], 'Open Library could not provide cover metadata (HTTP 503)'), 'HTTP failures name source and resource');
+    check(str_contains($service->resolve($service->book(14))['message'], 'Open Library could not provide cover metadata via title-and-author search'), 'HTTP failures name source and resource');
     $responses = [['status'=>429,'body'=>'busy']];
     check(str_contains($service->resolve($service->book(15))['message'], 'Open Library rate limit'), 'Rate limits named');
     $responses = [['status'=>200,'body'=>'invalid']];
