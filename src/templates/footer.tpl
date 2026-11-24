@@ -18,6 +18,6 @@
 <script src="https://unpkg.com/dropzone@5/dist/min/dropzone.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/quagga/dist/quagga.min.js"></script>
 <script src="/assets/js/covers.js?v=5" data-cover-token="{$coverToken|escape:'html'}"></script>
-<script src="/assets/js/custom.js?v=1.0.228" type="text/javascript"></script>
+<script src="/assets/js/custom.js?v=1.0.229" type="text/javascript"></script>
 </body>
 </html>

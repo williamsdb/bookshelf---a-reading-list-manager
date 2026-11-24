@@ -167,6 +167,8 @@ $(document).ready(function () {
       const editing = Boolean(reviewId);
       const form = document.getElementById("reviewForm");
       form.reset();
+      const contentError = document.getElementById("review-content-error");
+      if (contentError) contentError.hidden = true;
       form.action = editing ? "/updateReview" : "/addReview";
       document.getElementById("triggerModalLabel").textContent = editing ? "Edit Review" : "Add a Review";
       document.getElementById("reviewId").value = reviewId || "";
@@ -207,6 +209,12 @@ $(document).ready(function () {
           event.preventDefault();
           return;
         }
+
+        const reviewContentError = document.getElementById("review-content-error");
+        const hasRating = Number(document.getElementById("reviewRating").value) > 0;
+        const hasComment = document.getElementById("triggerComment").value.trim() !== "";
+        if (reviewContentError) reviewContentError.hidden = hasRating || hasComment;
+        if (!hasRating && !hasComment) return;
 
         // Trigger the form submission
         const form = document.getElementById("reviewForm");
@@ -596,43 +604,6 @@ $(document).ready(function () {
         window.location.href = "/";
       },
     });
-  });
-});
-
-// handle the date change
-$(document).on("blur", "#datetimePicker", function () {
-  const $select = $(this);
-  const name = $select.attr("name");
-  const value = $select.val();
-
-  const dateInput = document.getElementById("datetimePicker");
-  const inputDate = new Date(dateInput.value);
-  const currentDate = new Date();
-
-  const errorMessage = document.getElementById("error-message");
-  errorMessage.style.display = "none";
-
-  if (dateInput.value && inputDate >= currentDate) {
-    errorMessage.style.display = "block";
-    dateInput.focus();
-    return;
-  }
-
-  const bookId = $("input[name='bookId']").val();
-  const dateValue = value || "";
-  console.log("Book ID:", bookId, "Date Value:", dateValue);
-
-  $.ajax({
-    url: "/dateChange",
-    type: "POST",
-    data: { name: bookId, value: dateValue },
-    success: function (response) {
-      console.log("Update successful:", response);
-    },
-    error: function (xhr, status, error) {
-      console.error("Update failed:", error);
-      window.location.href = "/";
-    },
   });
 });
 

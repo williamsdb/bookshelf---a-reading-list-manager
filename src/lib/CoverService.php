@@ -53,7 +53,19 @@ class CoverService
         if (($state['status'] ?? '') !== 'ready' || ($state['signature'] ?? '') !== $this->signature($book)) return '';
         $url = $state['url'] ?? '';
         if (str_starts_with($url, 'https://covers.openlibrary.org/')) return $url;
-        return str_starts_with($url, '/cache/') && is_file($this->root . $url) ? $url : '';
+        $uploaded = str_starts_with($url, '/cache/covers/upload-' . (int)$book['id'] . '-');
+        return ($uploaded || !empty($book['has_imported_artwork']))
+            && str_starts_with($url, '/cache/') && is_file($this->root . $url) ? $url : '';
+    }
+
+    public function forgetBook(int $id): void
+    {
+        $delete = $this->pdo->prepare('DELETE FROM coverCache WHERE book_id = ?');
+        $delete->execute([$id]);
+        $files = [$this->root . '/cache/' . $id . '.jpg',
+            $this->root . '/cache/covers/' . $id . '.jpg', $this->root . '/cache/covers/' . $id . '.webp'];
+        $files = array_merge($files, glob($this->root . '/cache/covers/upload-' . $id . '-*') ?: []);
+        foreach ($files as $file) if (is_file($file)) @unlink($file);
     }
 
     private function state(int $id): array
@@ -166,7 +178,7 @@ class CoverService
     {
         $this->thumbnailError = '';
         // User-selected artwork takes precedence over future imports and automatic lookups.
-        if (!$uploaded && ($manual = $this->uploaded($id))) return $manual;
+        if (!$uploaded && ($manual = $this->uploaded($id)) && ($this->state($id)['url'] ?? '') === $manual) return $manual;
         if (!function_exists('imagecreatefromstring')) {
             $this->thumbnailError = 'PHP GD is unavailable, so Bookshelf cannot create a thumbnail';
             return null;
@@ -247,9 +259,12 @@ class CoverService
         return $this->result($book, 'ready', $url);
     }
 
-    private function local(int $id): ?string
+    private function local(array $book, array $state): ?string
     {
-        if ($manual = $this->uploaded($id)) return $manual;
+        $id = (int)$book['id'];
+        if (($manual = $this->uploaded($id)) && ($state['url'] ?? '') === $manual) return $manual;
+        // Only imported books can adopt numbered artwork. An ID alone is not provenance.
+        if (empty($book['has_imported_artwork'])) return null;
         foreach (['webp', 'jpg'] as $extension) {
             $url = '/cache/covers/' . $id . '.' . $extension;
             if (is_file($this->root . $url)) return $url;
@@ -274,12 +289,12 @@ class CoverService
         $this->networkUsed = false;
         $id = (int)$book['id'];
         $state = $this->state($id);
-        if ($local = $this->local($id)) return $this->result($book, 'ready', $local);
+        if ($local = $this->local($book, $state)) return $this->result($book, 'ready', $local);
         if (($state['signature'] ?? '') === $this->signature($book)) {
             if (($state['status'] ?? '') === 'ready' && str_starts_with($state['url'] ?? '', 'https://covers.openlibrary.org/')) {
                 return ['status' => 'ready', 'url' => $state['url']];
             }
-            if (($state['retry_at'] ?? 0) > time()
+            if (($state['status'] ?? '') !== 'ready' && ($state['retry_at'] ?? 0) > time()
                 && !($retryDeferred && ($state['status'] ?? '') === 'deferred')) {
                 $message = $state['message'] ?? (($state['status'] ?? '') === 'deferred'
                     ? (!empty($book['is_plex']) ? 'Plex' : 'Open Library') . ' cover lookup deferred. Retry catch-up to get the current failure reason.' : null);
@@ -374,6 +389,9 @@ class CoverService
     {
         $stmt = $this->pdo->prepare('SELECT b.*, EXISTS(SELECT 1 FROM bookSource bs JOIN source s ON s.id = bs.source
             WHERE bs.book = b.id AND s.name = "Plex") OR EXISTS(SELECT 1 FROM source s WHERE s.id = b.sourceId AND s.name = "Plex") AS is_plex
+            , EXISTS(SELECT 1 FROM bookSource bs JOIN source s ON s.id = bs.source
+                WHERE bs.book = b.id AND s.name IN ("Plex", "Calibre"))
+                OR EXISTS(SELECT 1 FROM source s WHERE s.id = b.sourceId AND s.name IN ("Plex", "Calibre")) AS has_imported_artwork
             FROM book b WHERE b.id = ?');
         $stmt->execute([$id]);
         return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;

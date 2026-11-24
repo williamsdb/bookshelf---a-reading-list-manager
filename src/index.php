@@ -790,6 +790,7 @@ switch ($cmd) {
                             ]);
 
                             $bookId = $pdo->lastInsertId();
+                            $covers->forgetBook((int)$bookId);
                             createBookReview($pdo, (int)$bookId, $dateRead, $rating, $review);
                             $insertBookSource = $pdo->prepare("INSERT INTO `bookSource` (`book`, `source`) VALUES (:bookId, :sourceId)");
                             $insertBookSource->execute([
@@ -932,6 +933,7 @@ switch ($cmd) {
                     book.isbn, 
                     format.name AS format, 
                     source.name AS source,
+                    (source.name IN ('Plex', 'Calibre') OR EXISTS(SELECT 1 FROM bookSource bs JOIN source cs ON cs.id = bs.source WHERE bs.book = book.id AND cs.name IN ('Plex', 'Calibre'))) AS has_imported_artwork,
                     book.read,
                     book.priority,
                     book.dateAdded,
@@ -1102,6 +1104,30 @@ switch ($cmd) {
         $smarty->display('viewDetails.tpl');
         break;
 
+    case 'deleteReview':
+        $bookId = (int)($_POST['bookId'] ?? 0);
+        $reviewId = (int)($_POST['reviewId'] ?? 0);
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST' || $bookId <= 0 || $reviewId <= 0
+            || !hash_equals($_SESSION['coverToken'], (string)($_POST['token'] ?? ''))) {
+            http_response_code(400);
+            exit('Invalid review deletion request.');
+        }
+        try {
+            $pdo->beginTransaction();
+            $unlink = $pdo->prepare('DELETE FROM bookReview WHERE book_id = ? AND review_id = ?');
+            $unlink->execute([$bookId, $reviewId]);
+            if ($unlink->rowCount() !== 1) throw new RuntimeException('Review not found for this book.');
+            $delete = $pdo->prepare('DELETE FROM review WHERE id = ? AND NOT EXISTS (SELECT 1 FROM bookReview WHERE review_id = ?)');
+            $delete->execute([$reviewId, $reviewId]);
+            $pdo->commit();
+            $_SESSION['error'] = 'Review deleted.';
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            $_SESSION['error'] = 'Unable to delete this review.';
+        }
+        header('Location: /viewDetails/' . $bookId);
+        exit;
+
     case 'addReview':
     case 'updateReview':
 
@@ -1118,7 +1144,8 @@ switch ($cmd) {
             || !$parsedDate || $parsedDate->format('Y-m-d') !== $dateRead
             || $dateRead > date('Y-m-d')
             || !is_numeric($rating) || (float)$rating < 0 || (float)$rating > 5
-            || fmod((float)$rating * 2, 1.0) !== 0.0) {
+            || fmod((float)$rating * 2, 1.0) !== 0.0
+            || ((float)$rating === 0.0 && $comment === '')) {
             $_SESSION['error'] = $editingReview ? 'Unable to update review.' : 'Unable to add review.';
             header('Location: /viewDetails/' . $bookId);
             exit;
@@ -1382,6 +1409,7 @@ switch ($cmd) {
             ]);
 
             $bookId = (int)$pdo->lastInsertId();
+            $covers->forgetBook($bookId);
             createBookReview($pdo, $bookId, $dateRead, $rating, $review);
 
             // Handle genre(s) for the newly created book
@@ -1547,7 +1575,8 @@ switch ($cmd) {
                 if (!$parsedDate || $parsedDate->format('Y-m-d') !== $reviewDate
                     || $reviewDate > date('Y-m-d') || !is_numeric($reviewRating)
                     || (float)$reviewRating < 0 || (float)$reviewRating > 5
-                    || fmod((float)$reviewRating * 2, 1.0) !== 0.0 || $reviewId < 0) {
+                    || fmod((float)$reviewRating * 2, 1.0) !== 0.0 || $reviewId < 0
+                    || ((float)$reviewRating === 0.0 && $reviewComment === '')) {
                     throw new RuntimeException('Invalid review date or rating.');
                 }
                 if ($reviewId > 0) {
@@ -1990,59 +2019,11 @@ switch ($cmd) {
 
 
     case 'dateChange':
-
-        // Expecting a POST request with 'name' (e.g., '12') and 'value'
-        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['name'], $_POST['value'])) {
-            $name = $_POST['name'];
-            $date = $_POST['value'];
-            // change date format from yyyy-mm-dd to yyyy/mm/dd
-            //            $date = date('Y/m/d', strtotime($date));
-
-            // Extract book id from the name (e.g., '12' => 12)
-            $bookId = intval($name);
-
-            // Update the date for the given book id
-            $update = $pdo->prepare("UPDATE review SET dateRead = :date WHERE id = (
-                SELECT r.id FROM review r
-                JOIN bookReview br ON br.review_id = r.id
-                WHERE br.book_id = :bookId
-                ORDER BY r.dateRead DESC, r.id DESC LIMIT 1
-            )");
-            $pdo->beginTransaction();
-            try {
-                $update->execute([':date' => $date, ':bookId' => $bookId]);
-                if ($update->rowCount() === 0) {
-                    $bookExists = $pdo->prepare('SELECT id FROM book WHERE id = :bookId');
-                    $bookExists->execute([':bookId' => $bookId]);
-                    if (!$bookExists->fetchColumn()) {
-                        throw new RuntimeException('Book not found.');
-                    }
-                    createBookReview($pdo, $bookId, $date, null, null);
-                }
-                $pdo->commit();
-            } catch (Exception $e) {
-                $pdo->rollBack();
-                http_response_code(400);
-                header('Content-Type: application/json');
-                echo json_encode(['error' => 'Unable to update date read.']);
-                exit;
-            }
-
-            header('Content-Type: application/json');
-            $_SESSION['error'] = 'Book updated successfully.' . $date;
-            echo json_encode(['success' => true]);
-            exit;
-        } else {
-            // Invalid request.
-            http_response_code(400);
-            header('Content-Type: application/json');
-            $_SESSION['error'] = 'Sorry, there was a problem updating the book details.';
-            echo json_encode(['error' => 'Invalid request.']);
-            exit;
-        }
-
-        break;
-
+        // Dates are saved with the complete review, never by a field-blur request.
+        http_response_code(409);
+        header('Content-Type: application/json');
+        echo json_encode(['error' => 'Please save the complete review using the review dialog.']);
+        exit;
 
     case 'stats':
 
@@ -2379,6 +2360,7 @@ switch ($cmd) {
                     ]);
 
                     $bookId = $pdo->lastInsertId();
+                    $covers->forgetBook((int)$bookId);
                     $insertBookSource = $pdo->prepare("INSERT INTO `bookSource` (`book`, `source`) VALUES (:bookId, :sourceId)");
                     $insertBookSource->execute([
                         ':bookId' => $bookId,
@@ -2511,6 +2493,7 @@ switch ($cmd) {
                     ]);
 
                     $bookId = $pdo->lastInsertId();
+                    $covers->forgetBook((int)$bookId);
                     $insertBookSource = $pdo->prepare("INSERT INTO `bookSource` (`book`, `source`) VALUES (:bookId, :sourceId)");
                     $insertBookSource->execute([
                         ':bookId' => $bookId,
@@ -2722,18 +2705,25 @@ switch ($cmd) {
             $id = intval($_REQUEST['id']);
         }
 
-        // Prepare the SQL statement to delete the book
-        $deleteStmt = $pdo->prepare("DELETE FROM book WHERE id = :id");
-        $deleteStmt->bindParam(':id', $id, PDO::PARAM_INT);
-
-        // Also delete from bookSource and bookList to maintain referential integrity
-        $pdo->prepare("DELETE FROM bookSource WHERE book = :id")->execute([':id' => $id]);
-        $pdo->prepare("DELETE FROM bookList WHERE book = :id")->execute([':id' => $id]);
-
-        // Execute the deletion
-        if ($deleteStmt->execute()) {
+        try {
+            $pdo->beginTransaction();
+            $linked = $pdo->prepare('SELECT review_id FROM bookReview WHERE book_id = ?');
+            $linked->execute([$id]);
+            $reviewIds = $linked->fetchAll(PDO::FETCH_COLUMN);
+            $pdo->prepare('DELETE FROM bookReview WHERE book_id = ?')->execute([$id]);
+            foreach ($reviewIds as $reviewId) {
+                $pdo->prepare('DELETE FROM review WHERE id = ? AND NOT EXISTS (SELECT 1 FROM bookReview WHERE review_id = ?)')->execute([$reviewId, $reviewId]);
+            }
+            $pdo->prepare('DELETE FROM bookGenre WHERE book_id = ?')->execute([$id]);
+            $pdo->prepare('DELETE FROM bookSource WHERE book = ?')->execute([$id]);
+            $pdo->prepare('DELETE FROM bookList WHERE book = ?')->execute([$id]);
+            $pdo->prepare('DELETE FROM book WHERE id = ?')->execute([$id]);
+            $pdo->prepare('DELETE FROM coverCache WHERE book_id = ?')->execute([$id]);
+            $pdo->commit();
+            $covers->forgetBook($id);
             $_SESSION['error'] = 'Book deleted successfully.';
-        } else {
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
             $_SESSION['error'] = 'Error deleting book.';
         }
 
@@ -2882,6 +2872,7 @@ switch ($cmd) {
                         ]);
 
                         $bookId = $pdo->lastInsertId();
+                        $covers->forgetBook((int)$bookId);
 
                         // Handle genre(s) for the newly created book
                         if (!empty($subject)) {

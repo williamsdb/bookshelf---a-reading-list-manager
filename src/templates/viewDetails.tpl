@@ -14,7 +14,8 @@
 				<label for="datetimePicker" class="form-label">Date Read</label>
 				<input type="date" class="form-control" name="date" id="datetimePicker" required>
 				<div id="error-message" style="color: red; display: none;">The date must be in the past.</div>
-				<label for="reviewRating" class="form-label" style="margin-top: 10px;">Rating (optional)</label>
+				<p id="review-content-error" class="text-danger" role="alert" hidden>Add a rating or some review text before saving.</p>
+                <label for="reviewRating" class="form-label" style="margin-top: 10px;">Rating (optional)</label>
                 <select name="rating" id="reviewRating" class="form-select">
                         <option value="0">No rating</option>
                         {section name=star start=1 loop=11}
@@ -24,6 +25,7 @@
                 </select>
 				<label for="triggerComment" class="form-label" style="margin-top: 10px;">Review (optional)</label>
 				<textarea class="form-control" name="comment" id="triggerComment" maxlength="1000" rows="4" style="height: 100px; resize: vertical;"></textarea>
+                <div class="form-text">Add a rating, review text, or both before saving.</div>
 				<input type="hidden" name="reviewId" id="reviewId" value="">
 				<input type="hidden" class="form-control" name="bookId" id="bookId" value="{$book.id}">
 				<input type="hidden" class="form-control" name="redirectTo" id="redirectTo" value="viewDetails">
@@ -321,6 +323,12 @@
                         data-review-date="{$review.dateRead|escape:'html'}"
                         data-review-rating="{$review.rating|escape:'html'}"
                         data-review-comment="{$review.review|escape:'html'}">Edit</button>
+                    <form action="/deleteReview" method="post" class="d-inline" onsubmit="return confirm('Delete this review?');">
+                        <input type="hidden" name="bookId" value="{$book.id}" />
+                        <input type="hidden" name="reviewId" value="{$review.id}" />
+                        <input type="hidden" name="token" value="{$coverToken|escape:'html'}" />
+                        <button type="submit" class="btn btn-outline-danger btn-sm">Delete</button>
+                    </form>
                 </td>
             </tr>
         {/foreach}

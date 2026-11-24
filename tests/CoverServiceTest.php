@@ -21,7 +21,7 @@ $transport = function ($url, $plex) use (&$calls, &$responses) {
 };
 $service = new CoverService($pdo, $root, 'http://plex.test:32400', 'private-token', $transport);
 $insert = $pdo->prepare('INSERT INTO book VALUES(?,?,?,?,?,?)');
-for ($id = 1; $id <= 18; $id++) $insert->execute([$id, 'A Christmas Carol', 'Charles Dickens', '', '', 2]);
+for ($id = 1; $id <= 21; $id++) $insert->execute([$id, 'A Christmas Carol', 'Charles Dickens', '', '', 2]);
 $pdo->exec('UPDATE book SET sourceId=1 WHERE id IN (1,2,3,4)');
 
 try {
@@ -156,6 +156,24 @@ try {
         $service->rememberPlex(18, '/library/metadata/456/thumb/789');
         $responses = [['status'=>200,'body'=>'{}'], ['status'=>200,'body'=>'not an image']];
         check(str_contains($service->resolve($service->book(18), true)['message'], 'Plex cover image was retrieved, but the source image is invalid'), 'Image processing errors are distinguished from unavailable servers');
+    }
+    if (function_exists('imagecreatetruecolor')) {
+        // Stale artwork can come from another library/database with the same numeric IDs.
+        $stale = $service->thumbnail(19, $art);
+        $responses = [['status'=>200,'body'=>'{"covers":[345]}']];
+        $pdo->exec("UPDATE book SET url='https://openlibrary.org/works/OL45029299W' WHERE id=19");
+        $newCover = $service->resolve($service->book(19));
+        check(str_contains($newCover['url'], '/b/id/345-'), 'Open Library addition must ignore unrelated numbered cache file');
+        $stale = $service->thumbnail(20, $art);
+        $pdo->prepare('INSERT INTO coverCache(book_id,status,url) VALUES(20,"ready",?)')->execute([$stale]);
+        $responses = [['status'=>200,'body'=>'{"docs":[]}']];
+        check($service->resolve($service->book(20))['status'] === 'missing', 'Manual addition must ignore previously adopted numbered artwork');
+        $service->uploadCover($service->book(21), $art);
+        $service->forgetBook(21);
+        check(!glob($root . '/cache/covers/upload-21-*'), 'Book deletion/creation clears stale uploaded covers');
+        check((int)$pdo->query('SELECT COUNT(*) FROM coverCache WHERE book_id=21')->fetchColumn() === 0, 'Clear stale cover metadata for reused IDs');
+        $responses = [['status'=>200,'body'=>'{"docs":[]}']];
+        check($service->resolve($service->book(21))['status'] === 'missing', 'Reused book ID cannot inherit uploaded artwork');
     }
     check($responses === [], 'All expected requests consumed');
     echo "PASS: offline Plex deferral/retry, local cache reuse, thumbnail sizes/aspect ratios, safe legacy conversion, Open Library references, conservative matching, retry/invalidation, validated uploads, source-specific failure reasons and cached messages.\n";
